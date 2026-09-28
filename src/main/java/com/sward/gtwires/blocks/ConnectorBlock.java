@@ -17,13 +17,12 @@ public final class ConnectorBlock extends BaseEntityBlock
 {
 	public static final DirectionProperty FACING = BlockStateProperties.FACING;
 
-	private static final VoxelShape BULB_SHAPE = box(6, 6, 6, 10, 10, 10);
-	private static final VoxelShape UP_SHAPE = Shapes.join(BULB_SHAPE, box(4, 0, 4, 12, 6, 12), BooleanOp.OR);
-	private static final VoxelShape DOWN_SHAPE = Shapes.join(BULB_SHAPE, box(4, 10, 4, 12, 16, 12), BooleanOp.OR);
-	private static final VoxelShape NORTH_SHAPE = Shapes.join(BULB_SHAPE, box(4, 4, 10, 12, 12, 16), BooleanOp.OR);
-	private static final VoxelShape SOUTH_SHAPE = Shapes.join(BULB_SHAPE, box(4, 4, 0, 12, 12, 6), BooleanOp.OR);
-	private static final VoxelShape EAST_SHAPE = Shapes.join(BULB_SHAPE, box(0, 4, 4, 6, 12, 12), BooleanOp.OR);
-	private static final VoxelShape WEST_SHAPE = Shapes.join(BULB_SHAPE, box(10, 4, 4, 16, 12, 12), BooleanOp.OR);
+	private static final VoxelShape UP_SHAPE = Shapes.join(box(6, 1, 6, 10, 6, 10), box(4, 0, 4, 12, 1, 12), BooleanOp.OR);
+	private static final VoxelShape DOWN_SHAPE = Shapes.join(box(6, 10, 6, 10, 15, 10), box(4, 15, 4, 12, 16, 12), BooleanOp.OR);
+	private static final VoxelShape NORTH_SHAPE = Shapes.join(box(6, 6, 10, 10, 10, 15), box(4, 4, 15, 12, 12, 16), BooleanOp.OR);
+	private static final VoxelShape SOUTH_SHAPE = Shapes.join(box(6, 6, 1, 10, 10, 6), box(4, 4, 0, 12, 12, 1), BooleanOp.OR);
+	private static final VoxelShape EAST_SHAPE = Shapes.join(box(1, 6, 6, 6, 10, 10), box(0, 4, 4, 1, 12, 12), BooleanOp.OR);
+	private static final VoxelShape WEST_SHAPE = Shapes.join(box(10, 6, 6, 16, 10, 10), box(15, 4, 4, 16, 12, 12), BooleanOp.OR);
 
 	public ConnectorBlock()
 	{

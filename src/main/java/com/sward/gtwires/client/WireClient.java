@@ -51,8 +51,8 @@ public final class WireClient
 	{
 		public static Visual create(ClientWire wire)
 		{
-			Vec3 aPos = wire.a.getCenter();
-			Vec3 bPos = wire.b.getCenter();
+			Vec3 aPos = getConnectorPosition(wire.a);
+			Vec3 bPos = getConnectorPosition(wire.b);
 
 			float width = wire.type.thickness();
 
@@ -68,6 +68,15 @@ public final class WireClient
 	public record Target(ClientWire wire, Vec3 hit, double distance)
 	{
 	}
+
+	private static final Vec3[] OFFSETS = {
+		new Vec3(0.50D, 0.25D, 0.50D),
+		new Vec3(0.50D, 0.75D, 0.50D),
+		new Vec3(0.50D, 0.50D, 0.25D),
+		new Vec3(0.50D, 0.50D, 0.75D),
+		new Vec3(0.25D, 0.50D, 0.50D),
+		new Vec3(0.75D, 0.50D, 0.50D)
+	};
 
 	// The render type used to render wires
 	private static final RenderType RENDER_TYPE = RenderType.entityCutout(InventoryMenu.BLOCK_ATLAS);
@@ -103,6 +112,24 @@ public final class WireClient
 	private static ResourceLocation dimension;
 
 	/**
+	 * Returns the connector position for the given block position.
+	 * Will return the center of the block if it fails to find the node.
+	 */
+	public static Vec3 getConnectorPosition(BlockPos blockPos)
+	{
+		long nodeId = blockPos.asLong();
+
+		Vec3 pos = Vec3.atLowerCornerOf(blockPos);
+
+		if (NODES.containsKey(nodeId))
+		{
+			pos = pos.add(OFFSETS[NODES.get(nodeId).ordinal()]);
+		}
+
+		return pos;
+	}
+
+	/**
 	 * One nearest-wire selection shared by Jade, the outline, and the cutter click.
 	 */
 	public static Target target()
@@ -133,8 +160,11 @@ public final class WireClient
 				continue;
 			}
 
+			Vec3 aPos = getConnectorPosition(visual.wire.a());
+			Vec3 bPos = getConnectorPosition(visual.wire.b());
+
 			double hit = CableGeometry.hit(
-				Vec3.atCenterOf(visual.wire.a()), Vec3.atCenterOf(visual.wire.b()), eye,
+				aPos, bPos, eye,
 				direction, reach, visual.width / 2 + 0.08D
 			);
 
@@ -318,6 +348,7 @@ public final class WireClient
 			if (tag != null && tag.contains("Start") && type != null)
 			{
 				BlockPos start = BlockPos.of(tag.getLong("Start"));
+				Vec3 startPos = getConnectorPosition(start);
 
 				boolean hasConnector = false;
 				boolean isValid = false;
@@ -330,7 +361,7 @@ public final class WireClient
 					BlockPos endBlockPos = hit.getBlockPos();
 
 					hasConnector = true;
-					end = endBlockPos.getCenter();
+					end = getConnectorPosition(endBlockPos);
 
 					isValid = true;
 
@@ -358,11 +389,11 @@ public final class WireClient
 					end = mc.hitResult.getLocation();
 				}
 
-				if (end.distanceToSqr(start.getX() + 0.5D, start.getY() + 0.5D, start.getZ() + 0.5D) <= 272D * 272D)
+				if (end.distanceToSqr(startPos) <= 272D * 272D)
 				{
 					float width = type.thickness();
 
-					CableGeometry.Mesh mesh = new CableGeometry.Mesh(start.getCenter(), end, width / 2);
+					CableGeometry.Mesh mesh = new CableGeometry.Mesh(startPos, end, width / 2);
 
 					VertexConsumer outline = buffers.getBuffer(WireHighlight.TYPE);
 					sides(
