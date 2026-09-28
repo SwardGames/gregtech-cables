@@ -1,0 +1,30 @@
+{
+  "variants": {
+    "facing=up": {
+      "model": "gtwires:block/connector"
+    },
+    "facing=down": {
+      "model": "gtwires:block/connector",
+      "x": 180
+    },
+    "facing=north": {
+      "model": "gtwires:block/connector",
+      "x": 90
+    },
+    "facing=east": {
+      "model": "gtwires:block/connector",
+      "y": 90,
+      "x": 90
+    },
+    "facing=south": {
+      "model": "gtwires:block/connector",
+      "y": 180,
+      "x": 90
+    },
+    "facing=west": {
+      "model": "gtwires:block/connector",
+      "y": 270,
+      "x": 90
+    }
+  }
+}

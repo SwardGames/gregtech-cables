@@ -1,0 +1,113 @@
+package com.sward.gtwires.blocks;
+
+import com.sward.gtwires.network.WireNetwork;
+import net.minecraft.core.*;
+import net.minecraft.server.level.ServerLevel;
+import net.minecraft.world.item.context.BlockPlaceContext;
+import net.minecraft.world.level.*;
+import net.minecraft.world.level.block.*;
+import net.minecraft.world.level.block.entity.BlockEntity;
+import net.minecraft.world.level.block.state.*;
+import net.minecraft.world.level.block.state.properties.*;
+import net.minecraft.world.phys.shapes.*;
+import net.minecraft.world.level.material.PushReaction;
+import org.jetbrains.annotations.NotNull;
+
+public final class ConnectorBlock extends BaseEntityBlock
+{
+	public static final DirectionProperty FACING = BlockStateProperties.FACING;
+
+	private static final VoxelShape BULB_SHAPE = box(6, 6, 6, 10, 10, 10);
+	private static final VoxelShape UP_SHAPE = Shapes.join(BULB_SHAPE, box(4, 0, 4, 12, 6, 12), BooleanOp.OR);
+	private static final VoxelShape DOWN_SHAPE = Shapes.join(BULB_SHAPE, box(4, 10, 4, 12, 16, 12), BooleanOp.OR);
+	private static final VoxelShape NORTH_SHAPE = Shapes.join(BULB_SHAPE, box(4, 4, 10, 12, 12, 16), BooleanOp.OR);
+	private static final VoxelShape SOUTH_SHAPE = Shapes.join(BULB_SHAPE, box(4, 4, 0, 12, 12, 6), BooleanOp.OR);
+	private static final VoxelShape EAST_SHAPE = Shapes.join(BULB_SHAPE, box(0, 4, 4, 6, 12, 12), BooleanOp.OR);
+	private static final VoxelShape WEST_SHAPE = Shapes.join(BULB_SHAPE, box(10, 4, 4, 16, 12, 12), BooleanOp.OR);
+
+	public ConnectorBlock()
+	{
+		super(Properties.of().strength(1.5F, 6).noOcclusion());
+		registerDefaultState(stateDefinition.any().setValue(FACING, Direction.UP));
+	}
+
+	@Override
+	protected void createBlockStateDefinition(StateDefinition.Builder<Block, BlockState> b)
+	{
+		b.add(FACING);
+	}
+
+	@Override
+	public BlockState getStateForPlacement(BlockPlaceContext c)
+	{
+		return defaultBlockState().setValue(FACING, c.getClickedFace());
+	}
+
+	@Override
+	public @NotNull RenderShape getRenderShape(@NotNull BlockState s)
+	{
+		return RenderShape.MODEL;
+	}
+
+	@Override
+	public @NotNull VoxelShape getShape(
+		@NotNull BlockState s,
+		@NotNull BlockGetter l,
+		@NotNull BlockPos p,
+		@NotNull CollisionContext c
+	)
+	{
+		switch (s.getValue(FACING))
+		{
+			case UP ->
+			{
+				return UP_SHAPE;
+			}
+			case DOWN ->
+			{
+				return DOWN_SHAPE;
+			}
+			case NORTH ->
+			{
+				return NORTH_SHAPE;
+			}
+			case SOUTH ->
+			{
+				return SOUTH_SHAPE;
+			}
+			case EAST ->
+			{
+				return EAST_SHAPE;
+			}
+			case WEST ->
+			{
+				return WEST_SHAPE;
+			}
+		}
+
+		return UP_SHAPE;
+	}
+
+	@Override
+	public BlockEntity newBlockEntity(@NotNull BlockPos p, @NotNull BlockState s)
+	{
+		return new ConnectorEntity(p, s);
+	}
+
+	@Override
+	public void onRemove(BlockState old, @NotNull Level level, @NotNull BlockPos pos, BlockState next, boolean moving)
+	{
+		if (!old.is(next.getBlock()) && level instanceof ServerLevel server)
+		{
+			WireNetwork.get(server).removeConnector(pos);
+		}
+
+		super.onRemove(old, level, pos, next, moving);
+	}
+
+	@Override
+	public PushReaction getPistonPushReaction(BlockState state)
+	{
+		return PushReaction.BLOCK;
+	}
+}

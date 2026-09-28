@@ -1,0 +1,10 @@
+.gradle/
+.reference/
+build/
+run/
+run-mesh/
+.idea/
+*.iml
+*-build.log
+dist/
+*.log

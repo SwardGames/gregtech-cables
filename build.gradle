@@ -1,0 +1,51 @@
+plugins {
+    id 'java'
+    id 'net.minecraftforge.gradle' version '6.0.54'
+}
+group = 'com.sward.gtwires'
+version = '0.6.0'
+base { archivesName = 'gtwires-1.20.1' }
+java.toolchain.languageVersion = JavaLanguageVersion.of(17)
+sourceSets {
+    gametest {
+        compileClasspath += sourceSets.main.output + sourceSets.main.compileClasspath
+        runtimeClasspath += sourceSets.main.output + sourceSets.main.runtimeClasspath
+    }
+}
+minecraft {
+    mappings channel: 'official', version: '1.20.1'
+    runs {
+        configureEach {
+            workingDirectory project.file('run')
+            property 'mixin.env.remapRefMap', 'true'
+            property 'mixin.env.refMapRemappingFile', "${projectDir}/build/createSrgToMcp/output.srg"
+            mods { gtwires { source sourceSets.main } }
+        }
+        client {}
+        server { args '--nogui' }
+    }
+}
+repositories {
+    mavenCentral()
+    maven { url = 'https://maven.gtceu.com' }
+    maven { url = 'https://maven.firstdark.dev/snapshots/' }
+    maven { url = 'https://maven.tterrag.com/' }
+    maven { url = 'https://maven.blamejared.com/' }
+    maven { url = 'https://cursemaven.com'; content { includeGroup 'curse.maven' } }
+}
+dependencies {
+    minecraft 'net.minecraftforge:forge:1.20.1-47.4.20'
+    implementation(fg.deobf('com.gregtechceu.gtceu:gtceu-1.20.1:7.5.3:slim')) { transitive = false }
+    implementation fg.deobf('com.tterrag.registrate:Registrate:MC1.20-1.3.11')
+    implementation(fg.deobf('com.lowdragmc.ldlib:ldlib-forge-1.20.1:1.0.40.b')) { transitive = false }
+    implementation(fg.deobf('dev.toma.configuration:configuration-forge-1.20.1:2.2.0')) { transitive = false }
+    compileOnly fg.deobf('curse.maven:jade-324717:5390389')
+    if (!project.hasProperty('withoutJade')) runtimeOnly fg.deobf('curse.maven:jade-324717:5390389')
+    runtimeOnly(fg.deobf('mezz.jei:jei-1.20.1-forge:15.20.0.115')) { transitive = false }
+}
+// LDLib's published POM lists optional mod integrations as compile dependencies.
+configurations.configureEach {
+    if (name == '__obfuscated') transitive = false
+}
+tasks.withType(JavaCompile).configureEach { options.encoding = 'UTF-8' }
+tasks.named('jar').configure { finalizedBy 'reobfJar' }
