@@ -33,7 +33,7 @@ public final class ConnectorEntity extends BlockEntity implements IEnergyContain
 
 		if (level instanceof ServerLevel server)
 		{
-			WireNetwork.get(server).register(worldPosition, attachedSide());
+			WireNetwork.get(server).addConnector(worldPosition, attachedSide());
 		}
 	}
 

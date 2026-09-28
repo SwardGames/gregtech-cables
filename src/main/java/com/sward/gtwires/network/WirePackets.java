@@ -1,120 +1,89 @@
 package com.sward.gtwires.network;
 
 import com.sward.gtwires.GregTechWires;
-import com.sward.gtwires.WireEvents;
-import net.minecraft.core.BlockPos;
-import net.minecraft.network.FriendlyByteBuf;
-import net.minecraft.resources.ResourceLocation;
-import net.minecraft.server.level.ServerLevel;
-import net.minecraft.server.level.ServerPlayer;
+import com.sward.gtwires.client.WireClient;
+import com.sward.gtwires.network.clientbound.*;
+import com.sward.gtwires.network.serverbound.CutEdgePacket;
 import net.minecraftforge.api.distmarker.Dist;
 import net.minecraftforge.fml.DistExecutor;
 import net.minecraftforge.network.*;
 import net.minecraftforge.network.simple.SimpleChannel;
 
-import java.util.function.Supplier;
-
 public final class WirePackets
 {
 	public static final SimpleChannel CHANNEL = NetworkRegistry.newSimpleChannel(
 		GregTechWires.id("wires"),
-		() -> "2",
-		"2"::equals,
-		"2"::equals
+		() -> "100",
+		"100"::equals,
+		"100"::equals
 	);
 
 	public static void init()
 	{
-		CHANNEL.messageBuilder(Update.class, 0, NetworkDirection.PLAY_TO_CLIENT)
-			.encoder(Update::encode)
-			.decoder(Update::decode)
+		int id = 0;
+
+		// Clientbound
+
+		CHANNEL.messageBuilder(SyncGraphPacket.class, id++, NetworkDirection.PLAY_TO_CLIENT)
+			.encoder(SyncGraphPacket::encode)
+			.decoder(SyncGraphPacket::decode)
 			.consumerMainThread((msg, ctx) -> DistExecutor.unsafeRunWhenOn(
 				Dist.CLIENT,
-				() -> () -> com.sward.gtwires.client.WireClient.update(msg)
+				() -> () -> WireClient.syncGraph(msg)
 			))
 			.add();
 
-		CHANNEL.messageBuilder(Cut.class, 1, NetworkDirection.PLAY_TO_SERVER)
-			.encoder((m, b) -> b.writeLong(m.id))
-			.decoder(b -> new Cut(b.readLong())).consumerMainThread(Cut::handle).add();
-	}
+		CHANNEL.messageBuilder(ResetGraphPacket.class, id++, NetworkDirection.PLAY_TO_CLIENT)
+			.encoder(ResetGraphPacket::encode)
+			.decoder(ResetGraphPacket::decode)
+			.consumerMainThread((msg, ctx) -> DistExecutor.unsafeRunWhenOn(
+				Dist.CLIENT,
+				() -> () -> WireClient.resetGraphPacket(msg)
+			))
+			.add();
 
-	public record Update(
-		ResourceLocation dimension,
-		byte operation,
-		long id,
-		BlockPos a,
-		BlockPos b,
-		ResourceLocation wire,
-		int cm
-	)
-	{
-		public static Update of(ServerLevel level, WireNetwork.Link e, boolean remove)
-		{
-			return new Update(
-				level.dimension().location(),
-				(byte) (remove ? 2 : 1),
-				e.id(),
-				e.a(),
-				e.b(),
-				e.wire(),
-				e.cm()
-			);
-		}
+		CHANNEL.messageBuilder(AddNodePacket.class, id++, NetworkDirection.PLAY_TO_CLIENT)
+			.encoder(AddNodePacket::encode)
+			.decoder(AddNodePacket::decode)
+			.consumerMainThread((msg, ctx) -> DistExecutor.unsafeRunWhenOn(
+				Dist.CLIENT,
+				() -> () -> WireClient.addNodePacket(msg)
+			))
+			.add();
 
-		public static Update burn(ServerLevel level, WireNetwork.Link e)
-		{
-			return new Update(level.dimension().location(), (byte) 3, e.id(), e.a(), e.b(), e.wire(), e.cm());
-		}
+		CHANNEL.messageBuilder(AddEdgePacket.class, id++, NetworkDirection.PLAY_TO_CLIENT)
+			.encoder(AddEdgePacket::encode)
+			.decoder(AddEdgePacket::decode)
+			.consumerMainThread((msg, ctx) -> DistExecutor.unsafeRunWhenOn(
+				Dist.CLIENT,
+				() -> () -> WireClient.addEdgePacket(msg)
+			))
+			.add();
 
-		public static Update reset(ServerLevel level)
-		{
-			return new Update(
-				level.dimension().location(),
-				(byte) 0,
-				0,
-				BlockPos.ZERO,
-				BlockPos.ZERO,
-				GregTechWires.id("empty"),
-				0
-			);
-		}
+		CHANNEL.messageBuilder(RemoveNodePacket.class, id++, NetworkDirection.PLAY_TO_CLIENT)
+			.encoder(RemoveNodePacket::encode)
+			.decoder(RemoveNodePacket::decode)
+			.consumerMainThread((msg, ctx) -> DistExecutor.unsafeRunWhenOn(
+				Dist.CLIENT,
+				() -> () -> WireClient.removeNodePacket(msg)
+			))
+			.add();
 
-		public void encode(FriendlyByteBuf b)
-		{
-			b.writeResourceLocation(dimension);
-			b.writeByte(operation);
-			b.writeLong(id);
-			b.writeBlockPos(a);
-			b.writeBlockPos(this.b);
-			b.writeResourceLocation(wire);
-			b.writeVarInt(cm);
-		}
+		CHANNEL.messageBuilder(RemoveEdgePacket.class, id++, NetworkDirection.PLAY_TO_CLIENT)
+			.encoder(RemoveEdgePacket::encode)
+			.decoder(RemoveEdgePacket::decode)
+			.consumerMainThread((msg, ctx) -> DistExecutor.unsafeRunWhenOn(
+				Dist.CLIENT,
+				() -> () -> WireClient.removeEdgePacket(msg)
+			))
+			.add();
 
-		public static Update decode(FriendlyByteBuf b)
-		{
-			return new Update(
-				b.readResourceLocation(),
-				b.readByte(),
-				b.readLong(),
-				b.readBlockPos(),
-				b.readBlockPos(),
-				b.readResourceLocation(),
-				b.readVarInt()
-			);
-		}
-	}
+		// Serverbound
 
-	public record Cut(long id)
-	{
-		static void handle(Cut msg, Supplier<NetworkEvent.Context> context)
-		{
-			ServerPlayer player = context.get().getSender();
-
-			if (player != null)
-			{
-				WireEvents.cut(player, msg.id);
-			}
-		}
+		CHANNEL.messageBuilder(CutEdgePacket.class, id++, NetworkDirection.PLAY_TO_SERVER)
+			.encoder(CutEdgePacket::encode)
+			.decoder(CutEdgePacket::decode)
+			.consumerMainThread(CutEdgePacket::handle)
+			.add();
 	}
 }

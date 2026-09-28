@@ -95,7 +95,7 @@ public final class ConnectorBlock extends BaseEntityBlock
 	}
 
 	@Override
-	public void onRemove(BlockState old, @NotNull Level level, @NotNull BlockPos pos, BlockState next, boolean moving)
+	public void onRemove(BlockState old, @NotNull Level level, @NotNull BlockPos pos, @NotNull BlockState next, boolean moving)
 	{
 		if (!old.is(next.getBlock()) && level instanceof ServerLevel server)
 		{

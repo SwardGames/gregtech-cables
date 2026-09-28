@@ -8,6 +8,7 @@ import com.sward.gtwires.*;
 import com.sward.gtwires.blocks.ConnectorEntity;
 import com.sward.gtwires.core.*;
 import com.sward.gtwires.items.SpoolItem;
+import com.sward.gtwires.network.clientbound.*;
 import net.minecraft.core.*;
 import net.minecraft.nbt.*;
 import net.minecraft.resources.ResourceLocation;
@@ -60,11 +61,6 @@ public final class WireNetwork extends SavedData
 			.computeIfAbsent(nbt -> load(level, nbt), () -> new WireNetwork(level), "gtwires_network");
 	}
 
-	public Collection<Link> links()
-	{
-		return Collections.unmodifiableCollection(links.values());
-	}
-
 	public Link link(long id)
 	{
 		return links.get(id);
@@ -75,14 +71,6 @@ public final class WireNetwork extends SavedData
 		return level.hasChunkAt(pos)
 			? level.getBlockEntity(pos) instanceof ConnectorEntity
 			: nodes.containsKey(pos.asLong());
-	}
-
-	public void register(BlockPos pos, Direction side)
-	{
-		if (nodes.put(pos.asLong(), side) != side)
-		{
-			setDirty();
-		}
 	}
 
 	public boolean connect(BlockPos a, BlockPos b, WireType wire, int cm)
@@ -114,12 +102,12 @@ public final class WireNetwork extends SavedData
 
 		if (level.hasChunkAt(a) && level.getBlockEntity(a) instanceof ConnectorEntity ca)
 		{
-			register(a, ca.attachedSide());
+			addConnector(a, ca.attachedSide());
 		}
 
 		if (level.hasChunkAt(b) && level.getBlockEntity(b) instanceof ConnectorEntity cb)
 		{
-			register(b, cb.attachedSide());
+			addConnector(b, cb.attachedSide());
 		}
 
 		Link link = new Link(id, a.immutable(), b.immutable(), wire.id(), cm);
@@ -128,7 +116,7 @@ public final class WireNetwork extends SavedData
 		links.put(id, link);
 
 		setDirty();
-		broadcast(link, false);
+		broadcastEdgeAdded(link);
 
 		return true;
 	}
@@ -145,7 +133,7 @@ public final class WireNetwork extends SavedData
 		graph.remove(id);
 
 		setDirty();
-		broadcast(link, true);
+		broadcastEdgeRemoved(link, false);
 
 		exposures.remove(id);
 		powered.remove(id);
@@ -165,10 +153,7 @@ public final class WireNetwork extends SavedData
 
 		setDirty();
 
-		WirePackets.CHANNEL.send(
-			PacketDistributor.DIMENSION.with(level::dimension),
-			WirePackets.Update.burn(level, link)
-		);
+		broadcastEdgeRemoved(link, true);
 	}
 
 	private void cacheContact(Link link, WireType type)
@@ -256,12 +241,31 @@ public final class WireNetwork extends SavedData
 		return links.values().stream().filter(e -> e.a.equals(pos) || e.b.equals(pos)).toList();
 	}
 
+	public void addConnector(BlockPos pos, Direction facing)
+	{
+		long id = pos.asLong();
+
+		if (nodes.containsKey(id) && nodes.get(id) == facing)
+		{
+			return;
+		}
+
+		nodes.put(id, facing);
+
+		WirePackets.CHANNEL.send(
+			PacketDistributor.DIMENSION.with(level::dimension),
+			new AddNodePacket(level.dimension().location(), id, facing)
+		);
+	}
+
 	public void removeConnector(BlockPos pos)
 	{
 		List<Link> detached = attached(pos);
 		detached.forEach(e -> remove(e.id));
 
-		if (nodes.remove(pos.asLong()) != null)
+		long id = pos.asLong();
+
+		if (nodes.remove(id) != null)
 		{
 			setDirty();
 		}
@@ -284,6 +288,11 @@ public final class WireNetwork extends SavedData
 				remaining -= count;
 			}
 		}
+
+		WirePackets.CHANNEL.send(
+			PacketDistributor.DIMENSION.with(level::dimension),
+			new RemoveNodePacket(level.dimension().location(), id)
+		);
 	}
 
 	public long transfer(BlockPos source, long voltage, long amps)
@@ -457,25 +466,28 @@ public final class WireNetwork extends SavedData
 		return true;
 	}
 
-	private void broadcast(Link link, boolean removed)
+	private void broadcastEdgeAdded(Link link)
 	{
 		WirePackets.CHANNEL.send(
 			PacketDistributor.DIMENSION.with(level::dimension),
-			WirePackets.Update.of(level, link, removed)
+			new AddEdgePacket(level.dimension().location(), link.id(), link.a(), link.b(), link.wire())
+		);
+	}
+
+	private void broadcastEdgeRemoved(Link link, boolean burned)
+	{
+		WirePackets.CHANNEL.send(
+			PacketDistributor.DIMENSION.with(level::dimension),
+			new RemoveEdgePacket(level.dimension().location(), link.id(), burned)
 		);
 	}
 
 	public void sync(ServerPlayer player)
 	{
-		WirePackets.CHANNEL.send(PacketDistributor.PLAYER.with(() -> player), WirePackets.Update.reset(level));
-
-		for (Link link : links.values())
-		{
-			WirePackets.CHANNEL.send(
-				PacketDistributor.PLAYER.with(() -> player),
-				WirePackets.Update.of(level, link, false)
-			);
-		}
+		WirePackets.CHANNEL.send(
+			PacketDistributor.PLAYER.with(() -> player),
+			SyncGraphPacket.create(level, nodes, links.values())
+		);
 	}
 
 	@Override
@@ -576,7 +588,7 @@ public final class WireNetwork extends SavedData
 
 			int cm = WireGraph.lengthCm(aBlockPos, bBlockPos);
 
-			if (cm <= 0 || cm > SpoolMath.capacity())
+			if (cm > WiresConfig.connectionMaxLength() || cm > SpoolMath.capacity())
 			{
 				continue;
 			}

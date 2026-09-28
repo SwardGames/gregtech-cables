@@ -4,6 +4,7 @@ import com.gregtechceu.gtceu.api.GTValues;
 import com.gregtechceu.gtceu.api.data.chemical.material.properties.WireProperties;
 import com.gregtechceu.gtceu.utils.FormattingUtil;
 import com.gregtechceu.gtceu.utils.GTUtil;
+import com.sward.gtwires.WiresConfig;
 import com.sward.gtwires.blocks.ConnectorBlock;
 import com.sward.gtwires.WireType;
 import com.sward.gtwires.core.SpoolMath;
@@ -24,7 +25,6 @@ import net.minecraft.world.entity.SlotAccess;
 import net.minecraft.world.item.*;
 import net.minecraft.world.item.context.UseOnContext;
 import net.minecraft.world.level.Level;
-import net.minecraft.world.phys.Vec3;
 import net.minecraftforge.registries.ForgeRegistries;
 import org.jetbrains.annotations.NotNull;
 
@@ -349,9 +349,16 @@ public final class SpoolItem extends Item
 
 		int cm = WireGraph.lengthCm(start, end);
 
-		if (cm < 0 || cm > length(spool))
+		if (cm > WiresConfig.connectionMaxLength())
 		{
-			message(player, "too_short");
+			message(player, "too_long");
+
+			return InteractionResult.CONSUME;
+		}
+
+		if (cm > length(spool))
+		{
+			message(player, "insufficient_wire");
 
 			return InteractionResult.CONSUME;
 		}

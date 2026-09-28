@@ -5,13 +5,16 @@ import com.sward.gtwires.*;
 import com.sward.gtwires.core.CableGeometry;
 import com.sward.gtwires.core.WireGraph;
 import com.sward.gtwires.items.SpoolItem;
-import com.sward.gtwires.network.WirePackets;
+import com.sward.gtwires.network.*;
+import com.sward.gtwires.network.clientbound.*;
+import com.sward.gtwires.network.serverbound.CutEdgePacket;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.multiplayer.ClientLevel;
 import net.minecraft.client.renderer.*;
 import net.minecraft.client.renderer.texture.OverlayTexture;
 import net.minecraft.client.renderer.texture.TextureAtlasSprite;
 import net.minecraft.core.BlockPos;
+import net.minecraft.core.Direction;
 import net.minecraft.core.SectionPos;
 import net.minecraft.core.particles.ParticleTypes;
 import net.minecraft.nbt.CompoundTag;
@@ -78,6 +81,9 @@ public final class WireClient
 	// Used to render invalid connection highlights
 	private static final int RED = 0xFFFF5544;
 
+	// All nodes known to the client
+	private static final Map<Long, Direction> NODES = new HashMap<>();
+
 	// All wires known to the client
 	private static final Map<Long, ClientWire> WIRES = new LinkedHashMap<>();
 
@@ -95,194 +101,6 @@ public final class WireClient
 
 	// The current dimension that the client information is for
 	private static ResourceLocation dimension;
-
-	public static void update(WirePackets.Update packet)
-	{
-		if (packet.operation() == 0 || !packet.dimension().equals(dimension))
-		{
-			WIRES.clear();
-			WIRES_PER_CHUNK.clear();
-			CONNECTIONS.clear();
-			WIRE_VISUALS.clear();
-			dimension = packet.dimension();
-		}
-
-		if (packet.operation() == 2 || packet.operation() == 3)
-		{
-			ClientWire wire = WIRES.remove(packet.id());
-
-			if (wire != null)
-			{
-				WIRE_VISUALS.remove(wire);
-
-				List<ChunkPos> chunks = WIRE_CHUNKS.remove(wire);
-
-				if (chunks != null)
-				{
-					for (ChunkPos chunk : chunks)
-					{
-						Set<ClientWire> chunkWires = WIRES_PER_CHUNK.get(chunk);
-
-						chunkWires.remove(wire);
-					}
-				}
-
-				BlockPos a = wire.a();
-				BlockPos b = wire.b();
-
-				Set<BlockPos> aLinks = CONNECTIONS.get(a);
-
-				if (aLinks != null)
-				{
-					aLinks.remove(b);
-				}
-
-				Set<BlockPos> bLinks = CONNECTIONS.get(b);
-
-				if (bLinks != null)
-				{
-					bLinks.remove(a);
-				}
-			}
-
-			if (packet.operation() == 3)
-			{
-				burnEffects(packet);
-			}
-		}
-		else if (packet.operation() == 1)
-		{
-			WireType type = WireType.of(packet.wire());
-
-			if (type == null)
-			{
-				GregTechWires.LOGGER.error(
-					"Failed to find WireType for id '{}'. The wire will be discarded.",
-					packet.wire()
-				);
-
-				return;
-			}
-
-			BlockPos a = packet.a();
-			BlockPos b = packet.b();
-
-			ClientWire wire = new ClientWire(
-				packet.id(),
-				packet.a(),
-				packet.b(),
-				packet.cm(),
-				new AABB(
-					a.getX(),
-					a.getY(),
-					a.getZ(),
-					b.getX() + 1D,
-					b.getY() + 1D,
-					b.getZ() + 1D
-				),
-				type
-			);
-
-			// Chunks for spatial hashing
-			List<ChunkPos> chunks = new ArrayList<>();
-
-			int aChunkX = SectionPos.blockToSectionCoord(a.getX());
-			int bChunkX = SectionPos.blockToSectionCoord(b.getX());
-			int aChunkZ = SectionPos.blockToSectionCoord(a.getZ());
-			int bChunkZ = SectionPos.blockToSectionCoord(b.getZ());
-
-			int chunkX0 = Math.min(aChunkX, bChunkX);
-			int chunkX1 = Math.max(aChunkX, bChunkX);
-			int chunkZ0 = Math.min(aChunkZ, bChunkZ);
-			int chunkZ1 = Math.max(aChunkZ, bChunkZ);
-
-			for (int chunkX = chunkX0; chunkX <= chunkX1; ++chunkX)
-			{
-				for (int chunkZ = chunkZ0; chunkZ <= chunkZ1; ++chunkZ)
-				{
-					ChunkPos chunkPos = new ChunkPos(chunkX, chunkZ);
-
-					chunks.add(chunkPos);
-
-					WIRES_PER_CHUNK.computeIfAbsent(chunkPos, k -> new HashSet<>()).add(wire);
-				}
-			}
-
-			WIRES.put(packet.id(), wire);
-
-			CONNECTIONS.computeIfAbsent(a, k -> new HashSet<>()).add(b);
-			CONNECTIONS.computeIfAbsent(b, k -> new HashSet<>()).add(a);
-
-			WIRE_CHUNKS.put(wire, chunks);
-		}
-	}
-
-	private static void burnEffects(WirePackets.Update link)
-	{
-		if (!ready())
-		{
-			return;
-		}
-
-		Minecraft mc = Minecraft.getInstance();
-
-		Vec3 a = Vec3.atCenterOf(link.a());
-		Vec3 b = Vec3.atCenterOf(link.b());
-
-		int samples = Math.min(256, Math.max(2, 5 * (int) Math.ceil(a.distanceTo(b))));
-
-		Vec3 nearest = null;
-		double bestDistance = 32 * 32;
-
-		for (int i = 0; i <= samples; i++)
-		{
-			Vec3 point = CableGeometry.point(a, b, i / (double) samples);
-
-			double distance = mc.player.distanceToSqr(point);
-
-			if (distance > 64 * 64 || !mc.level.hasChunkAt(BlockPos.containing(point)))
-			{
-				continue;
-			}
-
-			mc.level.addParticle(ParticleTypes.FLAME, point.x, point.y, point.z, 0D, 0.015D, 0D);
-			mc.level.addParticle(ParticleTypes.LARGE_SMOKE, point.x, point.y, point.z, 0D, 0.04D, 0D);
-
-			if (distance < bestDistance)
-			{
-				bestDistance = distance;
-				nearest = point;
-			}
-		}
-
-		if (nearest != null)
-		{
-			mc.level.playLocalSound(
-				nearest.x,
-				nearest.y,
-				nearest.z,
-				SoundEvents.FIRE_EXTINGUISH,
-				SoundSource.BLOCKS,
-				0.7F,
-				1.1F,
-				false
-			);
-		}
-	}
-
-	@SubscribeEvent
-	public static void logout(ClientPlayerNetworkEvent.LoggingOut e)
-	{
-		WIRES.clear();
-		dimension = null;
-	}
-
-	private static boolean ready()
-	{
-		Minecraft mc = Minecraft.getInstance();
-
-		return mc.level != null && mc.player != null && mc.level.dimension().location().equals(dimension);
-	}
 
 	/**
 	 * One nearest-wire selection shared by Jade, the outline, and the cutter click.
@@ -331,6 +149,24 @@ public final class WireClient
 	}
 
 	@SubscribeEvent
+	public static void logout(ClientPlayerNetworkEvent.LoggingOut e)
+	{
+		NODES.clear();
+		WIRES.clear();
+		WIRES_PER_CHUNK.clear();
+		CONNECTIONS.clear();
+		WIRE_VISUALS.clear();
+		dimension = null;
+	}
+
+	private static boolean ready()
+	{
+		Minecraft mc = Minecraft.getInstance();
+
+		return mc.level != null && mc.player != null && mc.level.dimension().location().equals(dimension);
+	}
+
+	@SubscribeEvent
 	public static void click(InputEvent.InteractionKeyMappingTriggered e)
 	{
 		if (!e.isUseItem() || !e.isCancelable() || !ready())
@@ -351,7 +187,7 @@ public final class WireClient
 		{
 			e.setCanceled(true);
 			e.setSwingHand(true);
-			WirePackets.CHANNEL.sendToServer(new WirePackets.Cut(selected.wire.id()));
+			WirePackets.CHANNEL.sendToServer(new CutEdgePacket(selected.wire.id()));
 		}
 	}
 
@@ -365,7 +201,7 @@ public final class WireClient
 
 		Minecraft mc = Minecraft.getInstance();
 		Vec3 camera = event.getCamera().getPosition();
-		double radius = mc.options.getEffectiveRenderDistance() * 16.0;
+		double radius = mc.options.getEffectiveRenderDistance() * 16D;
 
 		// Bounds used for rendering. Note that it has an infinite height.
 		AABB renderBounds = new AABB(camera, camera).inflate(radius, Double.POSITIVE_INFINITY, radius);
@@ -505,7 +341,7 @@ public final class WireClient
 
 					int cm = WireGraph.lengthCm(start, endBlockPos);
 
-					if (cm < 0 || cm > SpoolItem.length(heldItem))
+					if (cm > WiresConfig.connectionMaxLength() || cm > SpoolItem.length(heldItem))
 					{
 						isValid = false;
 					}
@@ -654,6 +490,261 @@ public final class WireClient
 					.uv(i == 0 || i == 3 ? u0 : u1, i < 2 ? v0 : v1)
 					.overlayCoords(OverlayTexture.NO_OVERLAY).uv2(light)
 					.normal(pose.normal(), (float) normal.x, (float) normal.y, (float) normal.z).endVertex();
+			}
+		}
+	}
+
+	private static void burnEffects(BlockPos a, BlockPos b)
+	{
+		if (!ready())
+		{
+			return;
+		}
+
+		Minecraft mc = Minecraft.getInstance();
+
+		Vec3 aPos = Vec3.atCenterOf(a);
+		Vec3 bPos = Vec3.atCenterOf(b);
+
+		int samples = Math.min(256, Math.max(2, 5 * (int) Math.ceil(aPos.distanceTo(bPos))));
+
+		Vec3 nearest = null;
+		double bestDistance = 32 * 32;
+
+		for (int i = 0; i <= samples; i++)
+		{
+			Vec3 point = CableGeometry.point(aPos, bPos, i / (double) samples);
+
+			double distance = mc.player.distanceToSqr(point);
+
+			if (distance > 64 * 64 || !mc.level.hasChunkAt(BlockPos.containing(point)))
+			{
+				continue;
+			}
+
+			mc.level.addParticle(ParticleTypes.FLAME, point.x, point.y, point.z, 0D, 0.015D, 0D);
+			mc.level.addParticle(ParticleTypes.LARGE_SMOKE, point.x, point.y, point.z, 0D, 0.04D, 0D);
+
+			if (distance < bestDistance)
+			{
+				bestDistance = distance;
+				nearest = point;
+			}
+		}
+
+		if (nearest != null)
+		{
+			mc.level.playLocalSound(
+				nearest.x,
+				nearest.y,
+				nearest.z,
+				SoundEvents.FIRE_EXTINGUISH,
+				SoundSource.BLOCKS,
+				0.7F,
+				1.1F,
+				false
+			);
+		}
+	}
+
+	/*
+	 * PACKET HANDLERS
+	 */
+
+	public static void syncGraph(SyncGraphPacket packet)
+	{
+		NODES.clear();
+		WIRES.clear();
+		WIRES_PER_CHUNK.clear();
+		CONNECTIONS.clear();
+		WIRE_VISUALS.clear();
+		dimension = packet.dimension();
+
+		for (SyncGraphPacket.NodeData node : packet.nodes())
+		{
+			addNode(node.id(), node.direction());
+		}
+
+		for (SyncGraphPacket.EdgeData edge : packet.edges())
+		{
+			addEdge(edge.id(), edge.a(), edge.b(), edge.wire());
+		}
+	}
+
+	public static void addNodePacket(AddNodePacket packet)
+	{
+		if (!packet.dimension().equals(dimension))
+		{
+			GregTechWires.LOGGER.error("Received add node packet for dimension {} in dimension {}.", packet.dimension(), dimension);
+
+			return;
+		}
+
+		addNode(packet.id(), packet.direction());
+	}
+
+	public static void addEdgePacket(AddEdgePacket packet)
+	{
+		if (!packet.dimension().equals(dimension))
+		{
+			GregTechWires.LOGGER.error("Received add edge packet for dimension {} in dimension {}.", packet.dimension(), dimension);
+
+			return;
+		}
+
+		addEdge(packet.id(), packet.a(), packet.b(), packet.wire());
+	}
+
+	public static void removeNodePacket(RemoveNodePacket packet)
+	{
+		if (!packet.dimension().equals(dimension))
+		{
+			GregTechWires.LOGGER.error("Received remove node packet for dimension {} in dimension {}.", packet.dimension(), dimension);
+
+			return;
+		}
+
+		removeNode(packet.id());
+	}
+
+	public static void removeEdgePacket(RemoveEdgePacket packet)
+	{
+		if (!packet.dimension().equals(dimension))
+		{
+			GregTechWires.LOGGER.error("Received remove edge packet for dimension {} in dimension {}.", packet.dimension(), dimension);
+
+			return;
+		}
+
+		removeEdge(packet.id(), packet.burned());
+	}
+
+	public static void resetGraphPacket(ResetGraphPacket packet)
+	{
+		if (!packet.dimension().equals(dimension))
+		{
+			GregTechWires.LOGGER.error("Received remove edge packet for dimension {} in dimension {}.", packet.dimension(), dimension);
+
+			return;
+		}
+
+		NODES.clear();
+		WIRES.clear();
+		WIRES_PER_CHUNK.clear();
+		CONNECTIONS.clear();
+		WIRE_VISUALS.clear();
+	}
+
+	private static void addNode(long id, Direction edge)
+	{
+		NODES.put(id, edge);
+	}
+
+	private static void removeNode(long id)
+	{
+		NODES.remove(id);
+	}
+
+	private static void addEdge(long id, BlockPos a, BlockPos b, ResourceLocation wire)
+	{
+		WireType type = WireType.of(wire);
+
+		if (type == null)
+		{
+			GregTechWires.LOGGER.error("Failed to find WireType for id '{}'. The wire will be discarded.", wire);
+
+			return;
+		}
+
+		ClientWire clientWire = new ClientWire(
+			id,
+			a,
+			b,
+			WireGraph.lengthCm(a, b),
+			new AABB(
+				a.getX(),
+				a.getY(),
+				a.getZ(),
+				b.getX() + 1D,
+				b.getY() + 1D,
+				b.getZ() + 1D
+			),
+			type
+		);
+
+		// Chunks for spatial hashing
+		List<ChunkPos> chunks = new ArrayList<>();
+
+		int aChunkX = SectionPos.blockToSectionCoord(a.getX());
+		int bChunkX = SectionPos.blockToSectionCoord(b.getX());
+		int aChunkZ = SectionPos.blockToSectionCoord(a.getZ());
+		int bChunkZ = SectionPos.blockToSectionCoord(b.getZ());
+
+		int chunkX0 = Math.min(aChunkX, bChunkX);
+		int chunkX1 = Math.max(aChunkX, bChunkX);
+		int chunkZ0 = Math.min(aChunkZ, bChunkZ);
+		int chunkZ1 = Math.max(aChunkZ, bChunkZ);
+
+		for (int chunkX = chunkX0; chunkX <= chunkX1; ++chunkX)
+		{
+			for (int chunkZ = chunkZ0; chunkZ <= chunkZ1; ++chunkZ)
+			{
+				ChunkPos chunkPos = new ChunkPos(chunkX, chunkZ);
+
+				chunks.add(chunkPos);
+
+				WIRES_PER_CHUNK.computeIfAbsent(chunkPos, k -> new HashSet<>()).add(clientWire);
+			}
+		}
+
+		WIRES.put(id, clientWire);
+
+		CONNECTIONS.computeIfAbsent(a, k -> new HashSet<>()).add(b);
+		CONNECTIONS.computeIfAbsent(b, k -> new HashSet<>()).add(a);
+
+		WIRE_CHUNKS.put(clientWire, chunks);
+	}
+
+	private static void removeEdge(long id, boolean burned)
+	{
+		ClientWire wire = WIRES.remove(id);
+
+		if (wire != null)
+		{
+			WIRE_VISUALS.remove(wire);
+
+			List<ChunkPos> chunks = WIRE_CHUNKS.remove(wire);
+
+			if (chunks != null)
+			{
+				for (ChunkPos chunk : chunks)
+				{
+					Set<ClientWire> chunkWires = WIRES_PER_CHUNK.get(chunk);
+
+					chunkWires.remove(wire);
+				}
+			}
+
+			BlockPos a = wire.a();
+			BlockPos b = wire.b();
+
+			Set<BlockPos> aLinks = CONNECTIONS.get(a);
+
+			if (aLinks != null)
+			{
+				aLinks.remove(b);
+			}
+
+			Set<BlockPos> bLinks = CONNECTIONS.get(b);
+
+			if (bLinks != null)
+			{
+				bLinks.remove(a);
+			}
+
+			if (burned)
+			{
+				burnEffects(a, b);
 			}
 		}
 	}
