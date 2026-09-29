@@ -11,6 +11,8 @@ import com.sward.gtcables.blocks.ConnectorEntity;
 import com.sward.gtcables.items.SpoolItem;
 import com.sward.gtcables.network.CablePackets;
 import com.sward.gtcables.network.clientbound.*;
+import net.minecraft.FieldsAreNonnullByDefault;
+import net.minecraft.MethodsReturnNonnullByDefault;
 import net.minecraft.core.*;
 import net.minecraft.nbt.*;
 import net.minecraft.resources.ResourceLocation;
@@ -32,11 +34,17 @@ import net.minecraftforge.network.PacketDistributor;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 
+import javax.annotation.ParametersAreNonnullByDefault;
 import java.util.*;
+
+import static com.gregtechceu.gtceu.api.blockentity.IPaintable.UNPAINTED_COLOR;
 
 /**
  * Owned by dimension SavedData, so relay chunks never need to be loaded.
  */
+@FieldsAreNonnullByDefault
+@ParametersAreNonnullByDefault
+@MethodsReturnNonnullByDefault
 public final class CableNetwork extends SavedData
 {
 	public record Heat(int temperature, long lastHeatedTick)
@@ -73,7 +81,7 @@ public final class CableNetwork extends SavedData
 		this.level = level;
 	}
 
-	public static CableNetwork get(@NotNull ServerLevel level)
+	public static CableNetwork get(ServerLevel level)
 	{
 		return level.getDataStorage().computeIfAbsent(
 			nbt -> load(level, nbt),
@@ -87,7 +95,7 @@ public final class CableNetwork extends SavedData
 		return graph.hasCable(id);
 	}
 
-	public Cable getCable(long id)
+	public @Nullable Cable getCable(long id)
 	{
 		return graph.getCable(id);
 	}
@@ -97,12 +105,16 @@ public final class CableNetwork extends SavedData
 		return graph.hasConnector(id);
 	}
 
-	public boolean hasConnector(@NotNull BlockPos pos)
+	public boolean hasConnector(BlockPos pos)
 	{
 		return graph.hasConnector(pos.asLong());
 	}
 
-	public boolean connect(@NotNull BlockPos a, @NotNull BlockPos b, @NotNull CableType cableType, int cm)
+	public @Nullable Direction getConnector(long id) { return graph.getConnector(id); }
+
+	public @Nullable Direction getConnector(BlockPos pos) { return graph.getConnector(pos.asLong()); }
+
+	public boolean connect(BlockPos a, BlockPos b, CableType cableType, int cm)
 	{
 		if (level.hasChunkAt(a) && level.getBlockEntity(a) instanceof ConnectorEntity ca)
 		{
@@ -114,7 +126,7 @@ public final class CableNetwork extends SavedData
 			addConnector(b, cb.attachedSide());
 		}
 
-		Cable cable = graph.addCable(nextId, a, b, a.asLong(), b.asLong(), cableType, cm, 0);
+		Cable cable = graph.addCable(nextId, a, b, a.asLong(), b.asLong(), cableType, cm, UNPAINTED_COLOR);
 
 		if (cable == null)
 		{
@@ -123,7 +135,7 @@ public final class CableNetwork extends SavedData
 
 		nextId++;
 
-		cacheContact(cable, cableType);
+		cacheContact(cable);
 
 		setDirty();
 		broadcastCableAdded(cable);
@@ -131,37 +143,34 @@ public final class CableNetwork extends SavedData
 		return true;
 	}
 
-	public void remove(long id)
+	public @Nullable Cable remove(long id)
+	{
+		return remove(id, false);
+	}
+
+	private @Nullable Cable remove(long id, boolean burned)
 	{
 		Cable cable = graph.removeCable(id);
 
 		if (cable == null)
 		{
-			return;
+			return null;
 		}
 
-		used.remove(cable.id);
-		heat.remove(cable.id);
-		exposures.remove(cable.id);
-		powered.remove(cable.id);
+		used.remove(id);
+		heat.remove(id);
+		exposures.remove(id);
+		powered.remove(id);
 
 		setDirty();
-		broadcastCableRemoved(cable, false);
+		broadcastCableRemoved(cable, burned);
+
+		return cable;
 	}
 
-	private void burn(Cable cable)
+	private void cacheContact(Cable cable)
 	{
-		exposures.remove(cable.id);
-		powered.remove(cable.id);
-
-		setDirty();
-
-		broadcastCableRemoved(cable, true);
-	}
-
-	private void cacheContact(Cable cable, CableType cableType)
-	{
-		if (cableType != null && cableType.shockHazard())
+		if (cable.cableType.shockHazard())
 		{
 			exposures.put(
 				cable.id,
@@ -169,7 +178,7 @@ public final class CableNetwork extends SavedData
 					new CableGeometry.ContactShape(
 						Vec3.atCenterOf(cable.a),
 						Vec3.atCenterOf(cable.b),
-						cableType.thickness() / 2
+						cable.cableType.thickness() / 2
 					),
 					new CableActivity()
 				)
@@ -177,7 +186,7 @@ public final class CableNetwork extends SavedData
 		}
 	}
 
-	public Heat getHeat(Cable cable)
+	public @Nullable Heat getHeat(Cable cable)
 	{
 		return heat.get(cable.id);
 	}
@@ -192,18 +201,18 @@ public final class CableNetwork extends SavedData
 
 	public int temperature(Cable cable, long tick)
 	{
-		Heat state = heat.get(cable.id);
+		Heat heat = this.heat.get(cable.id);
 
-		if (state == null)
+		if (heat == null)
 		{
 			return AMBIENT_TEMPERATURE;
 		}
 
-		int temperature = state.temperature;
+		int temperature = heat.temperature;
 
 		// GT does not cool during a heating tick. Replay only intervening idle ticks.
 		// At least 1 K is lost each step, so even years of inactivity take <2707 steps.
-		long idle = tick > state.lastHeatedTick ? tick - state.lastHeatedTick - 1 : 0;
+		long idle = tick > heat.lastHeatedTick ? tick - heat.lastHeatedTick - 1 : 0;
 
 		if (idle < 0)
 		{
@@ -234,8 +243,7 @@ public final class CableNetwork extends SavedData
 
 		if (amount >= BURN_TEMPERATURE - temperature)
 		{
-			remove(cable.id);
-			burn(cable);
+			remove(cable.id, true);
 		}
 		else
 		{
@@ -283,12 +291,12 @@ public final class CableNetwork extends SavedData
 		}
 	}
 
-	public List<Cable> attached(@NotNull BlockPos pos)
+	public List<Cable> attached(BlockPos pos)
 	{
 		return graph.getAdjacentCables(pos.asLong()).stream().toList();
 	}
 
-	public void addConnector(@NotNull BlockPos pos, @NotNull Direction facing)
+	public void addConnector(BlockPos pos, Direction facing)
 	{
 		long id = pos.asLong();
 
@@ -462,6 +470,7 @@ public final class CableNetwork extends SavedData
 						{
 							applyHeat(edge, voltageHeat(voltage, wireVoltage), tick);
 						}
+
 						packetVoltage = Math.min(packetVoltage, wireVoltage);
 						burned |= !graph.hasCable(edge.id);
 					}
@@ -636,7 +645,7 @@ public final class CableNetwork extends SavedData
 	/**
 	 * Removes the cables, recovering the spools.
 	 */
-	public boolean recover(Player player, List<Cable> cables, boolean commit)
+	public boolean recover(Player player, List<@NotNull Cable> cables, boolean commit)
 	{
 		Inventory inventory = player.getInventory();
 
@@ -707,6 +716,7 @@ public final class CableNetwork extends SavedData
 					remaining -= put;
 				}
 			}
+
 			if (remaining > 0)
 			{
 				return false;
@@ -759,9 +769,9 @@ public final class CableNetwork extends SavedData
 	}
 
 	public void useSprayCan(
-		@NotNull PlayerInteractEvent e,
+		PlayerInteractEvent e,
 		@Nullable DyeColor color,
-		@NotNull ColorSprayBehaviour behaviour
+		ColorSprayBehaviour behaviour
 	)
 	{
 		Player player = e.getEntity();
@@ -784,9 +794,8 @@ public final class CableNetwork extends SavedData
 			return;
 		}
 
-		// If color is null it means the player is using a solvent
-		// Otherwise ensure that the alpha channel is set so it's registered as painted
-		int rgb = color == null ? 0 : color.getMapColor().col | 0xFF000000;
+		// If color is null it means the player is using a solvent, so remove the painting color
+		int rgb = color == null ? UNPAINTED_COLOR : color.getMapColor().col;
 
 		cable.color = rgb;
 
@@ -830,7 +839,7 @@ public final class CableNetwork extends SavedData
 	}
 
 	@Override
-	public @NotNull CompoundTag save(CompoundTag tag)
+	public CompoundTag save(CompoundTag tag)
 	{
 		ListTag ns = new ListTag();
 		ListTag cs = new ListTag();
@@ -856,7 +865,11 @@ public final class CableNetwork extends SavedData
 				n.putLong("A", cable.aId);
 				n.putLong("B", cable.bId);
 				n.putString("CableType", cable.cableType.id().toString());
-				n.putInt("Color", cable.color);
+
+				if (cable.color != UNPAINTED_COLOR)
+				{
+					n.putInt("Color", cable.color);
+				}
 
 				Heat heat = getHeat(cable);
 
@@ -998,7 +1011,7 @@ public final class CableNetwork extends SavedData
 				);
 			}
 
-			int color = n.contains("Color") ? n.getInt("Color") : 0;
+			int color = n.contains("Color") ? n.getInt("Color") : UNPAINTED_COLOR;
 
 			Cable cable = net.graph.addCable(id, a, b, aId, bId, cableType, cm, color);
 
@@ -1016,8 +1029,8 @@ public final class CableNetwork extends SavedData
 			}
 
 			net.restoreHeat(cable, n.getInt("Temperature"), n.getLong("LastHeatedTick"));
+			net.cacheContact(cable);
 
-			net.cacheContact(cable, cableType);
 			net.nextId = Math.max(net.nextId, id + 1);
 		}
 

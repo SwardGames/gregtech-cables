@@ -18,12 +18,12 @@ import java.util.*;
  */
 public final class SpoolRecipe extends CustomRecipe
 {
-	public SpoolRecipe(ResourceLocation id, CraftingBookCategory category)
+	public SpoolRecipe(@NotNull ResourceLocation id, @NotNull CraftingBookCategory category)
 	{
 		super(id, category);
 	}
 
-	private List<Integer> slots(CraftingContainer inv)
+	private @NotNull List<Integer> slots(CraftingContainer inv)
 	{
 		List<Integer> slots = new ArrayList<>();
 

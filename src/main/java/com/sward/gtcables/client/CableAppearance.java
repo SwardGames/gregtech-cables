@@ -15,6 +15,7 @@ import net.minecraftforge.client.event.ModelEvent;
 import net.minecraftforge.eventbus.api.SubscribeEvent;
 import net.minecraftforge.fml.common.Mod;
 import net.minecraftforge.registries.ForgeRegistries;
+import org.jetbrains.annotations.NotNull;
 
 import java.util.*;
 import java.util.concurrent.ConcurrentHashMap;
@@ -26,11 +27,11 @@ import java.util.function.Function;
 @Mod.EventBusSubscriber(modid = GregTechCables.ID, value = Dist.CLIENT, bus = Mod.EventBusSubscriber.Bus.MOD)
 public final class CableAppearance
 {
-	public record Appearance(TextureAtlasSprite sprite, int color)
+	public record Appearance(@NotNull TextureAtlasSprite sprite, int color)
 	{
 	}
 
-	private static final Map<ResourceLocation, Appearance> CACHE = new ConcurrentHashMap<>();
+	private static final Map<@NotNull ResourceLocation, @NotNull Appearance> CACHE = new ConcurrentHashMap<>();
 
 	@SubscribeEvent
 	public static void rebaked(ModelEvent.BakingCompleted event)
@@ -38,12 +39,12 @@ public final class CableAppearance
 		CACHE.clear();
 	}
 
-	public static Appearance get(ResourceLocation cableType)
+	public static @NotNull Appearance get(@NotNull ResourceLocation cableType)
 	{
 		return CACHE.computeIfAbsent(cableType, CableAppearance::resolve);
 	}
 
-	private static Appearance resolve(ResourceLocation cableType)
+	private static @NotNull Appearance resolve(@NotNull ResourceLocation cableType)
 	{
 		Minecraft mc = Minecraft.getInstance();
 		Function<ResourceLocation, TextureAtlasSprite> atlas = mc.getTextureAtlas(InventoryMenu.BLOCK_ATLAS);

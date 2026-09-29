@@ -38,6 +38,8 @@ import org.jetbrains.annotations.Nullable;
 
 import java.util.*;
 
+import static com.gregtechceu.gtceu.api.blockentity.IPaintable.UNPAINTED_COLOR;
+
 @Mod.EventBusSubscriber(modid = GregTechCables.ID, value = Dist.CLIENT)
 public final class ClientCableNetwork
 {
@@ -162,7 +164,8 @@ public final class ClientCableNetwork
 
 		Minecraft mc = Minecraft.getInstance();
 		Vec3 camera = event.getCamera().getPosition();
-		double radius = mc.options.getEffectiveRenderDistance() * 16D;
+		int renderDistance = CablesConfig.connectionMaxLength();
+		double radius = renderDistance == 0 ? mc.options.getEffectiveRenderDistance() * 16D : renderDistance;
 
 		// Bounds used for rendering. Note that it has an infinite height.
 		AABB renderBounds = new AABB(camera, camera).inflate(radius, Double.POSITIVE_INFINITY, radius);
@@ -211,7 +214,7 @@ public final class ClientCableNetwork
 				poses.last(),
 				visual.mesh,
 				appearance.sprite(),
-				(cable.color != 0) ? cable.color : appearance.color(),
+				(cable.color != UNPAINTED_COLOR) ? cable.color : appearance.color(),
 				width,
 				false
 			);
@@ -390,7 +393,7 @@ public final class ClientCableNetwork
 		}
 	}
 
-	private static Vec3 interpolate(Vec3 a, Vec3 b, double t)
+	private static @NotNull Vec3 interpolate(@NotNull Vec3 a, @NotNull Vec3 b, double t)
 	{
 		return t <= 0 ? a : t >= 1 ? b : a.lerp(b, t);
 	}

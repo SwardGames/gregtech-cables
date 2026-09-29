@@ -1,14 +1,18 @@
 package com.sward.gtcables.graph;
 
+import net.minecraft.MethodsReturnNonnullByDefault;
 import net.minecraft.world.phys.Vec3;
 import net.minecraft.world.phys.AABB;
 
+import javax.annotation.ParametersAreNonnullByDefault;
 import java.util.ArrayList;
 import java.util.List;
 
 /**
  * Catenary shared by client rendering and authoritative server picking.
  */
+@ParametersAreNonnullByDefault
+@MethodsReturnNonnullByDefault
 public final class CableGeometry
 {
 	private CableGeometry()

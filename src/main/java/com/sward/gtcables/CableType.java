@@ -5,14 +5,17 @@ import com.gregtechceu.gtceu.api.data.chemical.material.properties.WirePropertie
 import com.gregtechceu.gtceu.api.item.PipeBlockItem;
 import com.gregtechceu.gtceu.common.block.CableBlock;
 import com.gregtechceu.gtceu.common.pipelike.cable.Insulation;
+import net.minecraft.FieldsAreNonnullByDefault;
 import net.minecraft.resources.ResourceLocation;
 import net.minecraft.world.item.*;
 import net.minecraftforge.registries.ForgeRegistries;
-import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 
+import javax.annotation.ParametersAreNonnullByDefault;
 import java.util.HashMap;
 
+@FieldsAreNonnullByDefault
+@ParametersAreNonnullByDefault
 public record CableType(
 	ResourceLocation id,
 	PipeBlockItem item,
@@ -24,17 +27,24 @@ public record CableType(
 	private static final HashMap<Item, CableType> Types = new HashMap<>();
 	private static final HashMap<ResourceLocation, CableType> TypeFromIds = new HashMap<>();
 
-	public static @Nullable CableType of(@NotNull Item item)
+	public static @Nullable CableType of(Item item)
 	{
 		if (Types.containsKey(item))
 		{
 			return Types.get(item);
 		}
 
-		return createCableType(ForgeRegistries.ITEMS.getKey(item), item);
+		ResourceLocation id = ForgeRegistries.ITEMS.getKey(item);
+
+		if (id == null)
+		{
+			return null;
+		}
+
+		return createCableType(id, item);
 	}
 
-	public static @Nullable CableType of(@NotNull ResourceLocation id)
+	public static @Nullable CableType of(ResourceLocation id)
 	{
 		if (TypeFromIds.containsKey(id))
 		{
@@ -74,7 +84,7 @@ public record CableType(
 		return insulation.insulationLevel == -1 && !wireProperties.isSuperconductor() && wireProperties.getLossPerBlock() > 0;
 	}
 
-	private static @Nullable CableType createCableType(ResourceLocation id, Item item)
+	private static @Nullable CableType createCableType(ResourceLocation id, @Nullable Item item)
 	{
 		if (!(item instanceof PipeBlockItem bi) || !(bi.getBlock() instanceof CableBlock cable))
 		{

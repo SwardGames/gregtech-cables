@@ -1,8 +1,8 @@
 package com.sward.gtcables.graph;
 
 import com.sward.gtcables.CableType;
-import com.sward.gtcables.CablesConfig;
-import com.sward.gtcables.events.CableEvents;
+import com.sward.gtcables.util.PlayerHelper;
+import net.minecraft.MethodsReturnNonnullByDefault;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
 import net.minecraft.core.SectionPos;
@@ -13,12 +13,15 @@ import net.minecraft.world.phys.Vec3;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 
+import javax.annotation.ParametersAreNonnullByDefault;
 import java.util.*;
 import java.util.function.Consumer;
 
 /**
  * Pure server-side graph.
  */
+@ParametersAreNonnullByDefault
+@MethodsReturnNonnullByDefault
 public final class CableGraph
 {
 	private static final Vec3[] CONNECTOR_OFFSETS = {
@@ -66,7 +69,7 @@ public final class CableGraph
 		return connectors.containsKey(id);
 	}
 
-	public Direction getConnector(long id)
+	public @Nullable Direction getConnector(long id)
 	{
 		return connectors.get(id);
 	}
@@ -114,7 +117,7 @@ public final class CableGraph
 			.anyMatch(e -> e.other(aId) == bId);
 	}
 
-	public Cable getCable(long id)
+	public @Nullable Cable getCable(long id)
 	{
 		return cables.get(id);
 	}
@@ -124,7 +127,7 @@ public final class CableGraph
 		return adjacency.getOrDefault(node, List.of());
 	}
 
-	public boolean addConnector(long id, @NotNull Direction direction)
+	public boolean addConnector(long id, Direction direction)
 	{
 		if (connectors.get(id) == direction)
 		{
@@ -206,7 +209,7 @@ public final class CableGraph
 		return cable;
 	}
 
-	public Cable removeCable(long id)
+	public @Nullable Cable removeCable(long id)
 	{
 		Cable cable = cables.remove(id);
 
@@ -250,7 +253,7 @@ public final class CableGraph
 		cableChunks.clear();
 	}
 
-	public void forEachOverlap(AABB bounds, Consumer<Cable> cableConsumer)
+	public void forEachOverlap(AABB bounds, Consumer<@NotNull Cable> cableConsumer)
 	{
 		int chunkX0 = SectionPos.posToSectionCoord(bounds.minX);
 		int chunkX1 = SectionPos.posToSectionCoord(bounds.maxX + 1);
@@ -282,7 +285,7 @@ public final class CableGraph
 	/**
 	 * One nearest-cable selection shared by Jade, the outline, and the cutter click.
 	 */
-	public CableHitResult clip(Vec3 start, Vec3 dir, double maxDistance)
+	public @Nullable CableHitResult clip(Vec3 start, Vec3 dir, double maxDistance)
 	{
 		var ref = new Object()
 		{
@@ -314,8 +317,8 @@ public final class CableGraph
 		return ref.hit == null ? null : new CableHitResult(ref.hit, start.add(dir.scale(ref.best)), ref.best);
 	}
 
-	public CableHitResult clip(Player player)
+	public @Nullable CableHitResult clip(Player player)
 	{
-		return clip(player.getEyePosition(), player.getLookAngle(), CableEvents.unobstructedReach(player));
+		return clip(player.getEyePosition(), player.getLookAngle(), PlayerHelper.unobstructedReach(player));
 	}
 }

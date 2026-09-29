@@ -13,6 +13,9 @@ import net.minecraft.world.item.Item;
 import net.minecraft.world.item.ItemStack;
 import org.apache.commons.lang3.tuple.ImmutablePair;
 
+import javax.annotation.ParametersAreNonnullByDefault;
+
+@ParametersAreNonnullByDefault
 public final class CableTools
 {
 	public static final TagKey<Item> CUTTERS = TagKey.create(Registries.ITEM, GregTechCables.id("wire_cutters"));
@@ -78,10 +81,5 @@ public final class CableTools
 		}
 
 		return null;
-	}
-
-	public static boolean isSolventCan(ItemStack stack)
-	{
-		return stack.is(GTItems.SPRAY_SOLVENT.get());
 	}
 }

@@ -66,7 +66,8 @@ public final class GregTechCables
 	{
 		IEventBus bus = context.getModEventBus();
 
-		context.registerConfig(ModConfig.Type.COMMON, CablesConfig.SPEC);
+		context.registerConfig(ModConfig.Type.COMMON, CablesConfig.COMMON_SPEC);
+		context.registerConfig(ModConfig.Type.CLIENT, CablesConfig.CLIENT_SPEC);
 
 		BLOCKS.register(bus);
 		ITEMS.register(bus);

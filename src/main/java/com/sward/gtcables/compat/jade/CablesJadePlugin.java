@@ -69,27 +69,35 @@ public final class CablesJadePlugin implements IWailaPlugin
 
 	public static List<Component> description(CableHitResult hitResult, boolean details)
 	{
-		Cable wire = hitResult.cable();
-		CableType type = wire.cableType;
+		Cable cable = hitResult.cable();
+		CableType cableType = cable.cableType;
 
 		ArrayList<Component> lines = new java.util.ArrayList<>();
 
 		lines.add(Component.translatable(
 			"jade.gtcables.voltage",
-			GTValues.VNF[GTUtil.getTierByVoltage(type.voltage())]
+			GTValues.VNF[GTUtil.getTierByVoltage(cableType.voltage())]
 		));
 
-		lines.add(Component.translatable("jade.gtcables.amperage", type.amps()));
+		lines.add(Component.translatable("jade.gtcables.amperage", cableType.amps()));
 
-		lines.add(Component.translatable("jade.gtcables.length", decimal(wire.lengthCm, 2)));
+		lines.add(Component.translatable("jade.gtcables.length", decimal(cable.lengthCm, 2)));
+
+		if (cable.color != 0)
+		{
+			lines.add(
+				Component.translatable("gtceu.top.stained", String.format("#%06X", cable.color))
+					.withStyle(style -> style.withColor(cable.color))
+			);
+		}
 
 		if (details)
 		{
-			lines.add(Component.translatable("jade.gtcables.endpoint_a", wire.a.toShortString()));
-			lines.add(Component.translatable("jade.gtcables.endpoint_b", wire.b.toShortString()));
+			lines.add(Component.translatable("jade.gtcables.endpoint_a", cable.a.toShortString()));
+			lines.add(Component.translatable("jade.gtcables.endpoint_b", cable.b.toShortString()));
 			lines.add(Component.translatable(
 				"jade.gtcables.span_loss",
-				decimal((long) wire.lengthCm * type.lossPerMetre(), 2)
+				decimal((long) cable.lengthCm * cableType.lossPerMetre(), 2)
 			));
 		}
 

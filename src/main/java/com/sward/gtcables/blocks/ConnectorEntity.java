@@ -21,7 +21,7 @@ public final class ConnectorEntity extends BlockEntity implements IEnergyContain
 		super(GregTechCables.CONNECTOR_ENTITY.get(), pos, state);
 	}
 
-	public Direction attachedSide()
+	public @NotNull Direction attachedSide()
 	{
 		return getBlockState().getValue(ConnectorBlock.FACING).getOpposite();
 	}

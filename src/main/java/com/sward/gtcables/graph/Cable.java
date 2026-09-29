@@ -2,16 +2,18 @@ package com.sward.gtcables.graph;
 
 import com.sward.gtcables.CableType;
 import com.sward.gtcables.CablesConfig;
+import net.minecraft.FieldsAreNonnullByDefault;
 import net.minecraft.core.BlockPos;
 import net.minecraft.world.phys.AABB;
 import org.jetbrains.annotations.NotNull;
 
+@FieldsAreNonnullByDefault
 public final class Cable
 {
 	public final long id;
 	public final BlockPos a;
 	public final BlockPos b;
-	public final @NotNull CableType cableType;
+	public final CableType cableType;
 	public final int lengthCm;
 
 	public final AABB bounds;
@@ -23,7 +25,7 @@ public final class Cable
 
 	public Cable(long id, @NotNull BlockPos a, @NotNull BlockPos b, @NotNull CableType cableType, int lengthCm, int color)
 	{
-		if (a == b || lengthCm < 1 || lengthCm > CablesConfig.connectionMaxLength() || cableType == null)
+		if (a == b || lengthCm < 1 || lengthCm > CablesConfig.connectionMaxLength())
 		{
 			throw new IllegalArgumentException("Invalid cable");
 		}
@@ -83,14 +85,14 @@ public final class Cable
 	@Override
 	public String toString()
 	{
-		return "Wire[" +
+		return "Cable[" +
 			"id=" + id + ", " +
 			"a=" + a + ", " +
 			"b=" + b + ", " +
 			"aId=" + aId + ", " +
 			"bId=" + bId + ", " +
 			"lengthCm=" + lengthCm + ", " +
-			"wireType=" + cableType + ", " +
+			"cableType=" + cableType + ", " +
 			"color=" + color + ']';
 	}
 
