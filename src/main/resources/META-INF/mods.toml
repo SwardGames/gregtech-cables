@@ -2,24 +2,24 @@ modLoader="javafml"
 loaderVersion="[47,)"
 license="MIT"
 [[mods]]
-modId="gtwires"
-version="0.5.1"
-displayName="GregTech Wires"
+modId="gtcables"
+version="1.0.0 RC 1"
+displayName="GregTech Cables"
 authors="Sward"
-description='''Suspended GregTech EU cables, centimetre spools, and persistent event-driven networks.'''
-[[dependencies.gtwires]]
+description='''Suspended power cables for GregTech: Modern.'''
+[[dependencies.gtcables]]
 modId="forge"
 mandatory=true
 versionRange="[47.4.20,48)"
 ordering="NONE"
 side="BOTH"
-[[dependencies.gtwires]]
+[[dependencies.gtcables]]
 modId="minecraft"
 mandatory=true
 versionRange="[1.20.1,1.20.2)"
 ordering="NONE"
 side="BOTH"
-[[dependencies.gtwires]]
+[[dependencies.gtcables]]
 modId="gtceu"
 mandatory=true
 versionRange="[7.5.3,8)"

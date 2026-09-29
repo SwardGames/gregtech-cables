@@ -1,0 +1,13 @@
+{
+	"replace": false,
+	"values": [
+		{
+			"id": "#forge:tools/wire_cutters",
+			"required": false
+		},
+		{
+			"id": "#forge:tools/wire_cutter",
+			"required": false
+		}
+	]
+}

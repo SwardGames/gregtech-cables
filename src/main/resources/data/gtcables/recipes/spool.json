@@ -1,0 +1,27 @@
+{
+	"type": "minecraft:crafting_shaped",
+	"category": "misc",
+	"pattern": [
+		" M ",
+		"PSP",
+		" F "
+	],
+	"key": {
+		"P": {
+			"tag": "forge:plates/wood"
+		},
+		"S": {
+			"tag": "forge:rods/wood"
+		},
+		"M": {
+			"tag": "gtceu:tools/crafting_mallets"
+		},
+		"F": {
+			"tag": "gtceu:tools/crafting_files"
+		}
+	},
+	"result": {
+		"item": "gtcables:spool",
+		"count": 1
+	}
+}

@@ -1,3 +1,3 @@
 # GregTech Wires
 
-Immersive Engineering-style cables for GregTech: Modern.
+Suspended power cables for GregTech: Modern

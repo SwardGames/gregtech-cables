@@ -1,0 +1,30 @@
+{
+  "variants": {
+    "facing=up": {
+      "model": "gtcables:block/connector"
+    },
+    "facing=down": {
+      "model": "gtcables:block/connector",
+      "x": 180
+    },
+    "facing=north": {
+      "model": "gtcables:block/connector",
+      "y": 180,
+      "x": 270
+    },
+    "facing=east": {
+      "model": "gtcables:block/connector",
+      "y": 270,
+      "x": 270
+    },
+    "facing=south": {
+      "model": "gtcables:block/connector",
+      "x": 270
+    },
+    "facing=west": {
+      "model": "gtcables:block/connector",
+      "y": 90,
+      "x": 270
+    }
+  }
+}
