@@ -9,13 +9,16 @@ import net.minecraft.world.level.block.*;
 import net.minecraft.world.level.block.entity.BlockEntity;
 import net.minecraft.world.level.block.state.*;
 import net.minecraft.world.level.block.state.properties.*;
+import net.minecraft.world.level.material.FluidState;
+import net.minecraft.world.level.material.Fluids;
 import net.minecraft.world.phys.shapes.*;
 import net.minecraft.world.level.material.PushReaction;
 import org.jetbrains.annotations.NotNull;
 
-public final class ConnectorBlock extends BaseEntityBlock
+public final class ConnectorBlock extends BaseEntityBlock implements SimpleWaterloggedBlock
 {
 	public static final DirectionProperty FACING = BlockStateProperties.FACING;
+	public static final BooleanProperty WATERLOGGED = BlockStateProperties.WATERLOGGED;
 
 	private static final VoxelShape UP_SHAPE = Shapes.join(box(6, 1, 6, 10, 6, 10), box(4, 0, 4, 12, 1, 12), BooleanOp.OR);
 	private static final VoxelShape DOWN_SHAPE = Shapes.join(box(6, 10, 6, 10, 15, 10), box(4, 15, 4, 12, 16, 12), BooleanOp.OR);
@@ -28,19 +31,53 @@ public final class ConnectorBlock extends BaseEntityBlock
 	{
 		super(Properties.of().strength(1.5F, 6).noOcclusion());
 
-		registerDefaultState(stateDefinition.any().setValue(FACING, Direction.UP));
+		registerDefaultState(
+			stateDefinition.any()
+				.setValue(FACING, Direction.UP)
+				.setValue(WATERLOGGED, false)
+		);
 	}
 
 	@Override
 	protected void createBlockStateDefinition(StateDefinition.Builder<Block, BlockState> b)
 	{
-		b.add(FACING);
+		b.add(FACING, WATERLOGGED);
 	}
 
 	@Override
 	public BlockState getStateForPlacement(BlockPlaceContext c)
 	{
-		return defaultBlockState().setValue(FACING, c.getClickedFace());
+		FluidState fluid = c.getLevel().getFluidState(c.getClickedPos());
+
+		return defaultBlockState()
+			.setValue(FACING, c.getClickedFace())
+			.setValue(WATERLOGGED, fluid.getType() == Fluids.WATER);
+	}
+
+	@Override
+	public FluidState getFluidState(BlockState state)
+	{
+		return state.getValue(WATERLOGGED)
+			? Fluids.WATER.getSource(false)
+			: super.getFluidState(state);
+	}
+
+	@Override
+	public BlockState updateShape(
+		BlockState state,
+		Direction direction,
+		BlockState neighbourState,
+		LevelAccessor level,
+		BlockPos pos,
+		BlockPos neighbourPos
+	)
+	{
+		if (state.getValue(WATERLOGGED))
+		{
+			level.scheduleTick(pos, Fluids.WATER, Fluids.WATER.getTickDelay(level));
+		}
+
+		return super.updateShape(state, direction, neighbourState, level, pos, neighbourPos);
 	}
 
 	@Override
