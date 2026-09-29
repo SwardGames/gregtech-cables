@@ -7,9 +7,8 @@ import com.gregtechceu.gtceu.utils.GTUtil;
 import com.sward.gtwires.WiresConfig;
 import com.sward.gtwires.blocks.ConnectorBlock;
 import com.sward.gtwires.WireType;
-import com.sward.gtwires.core.SpoolMath;
-import com.sward.gtwires.core.WireGraph;
-import com.sward.gtwires.network.WireNetwork;
+import com.sward.gtwires.graph.CableGraph;
+import com.sward.gtwires.graph.CableNetwork;
 import net.minecraft.core.BlockPos;
 import net.minecraft.nbt.CompoundTag;
 import net.minecraft.network.chat.Component;
@@ -43,9 +42,19 @@ public final class SpoolItem extends Item
 		return length(stack) == 0 ? 64 : 1;
 	}
 
+	public static int transferable(int source, int target)
+	{
+		return Math.min(source, WiresConfig.spoolCapacity() - target);
+	}
+
+	public static int removableItems(int length, int stackLimit)
+	{
+		return Math.min(length / 100, stackLimit);
+	}
+
 	public static int length(ItemStack stack)
 	{
-		return stack.hasTag() ? Math.max(0, Math.min(SpoolMath.capacity(), stack.getTag().getInt("LengthCm"))) : 0;
+		return stack.hasTag() ? Math.max(0, Math.min(WiresConfig.spoolCapacity(), stack.getTag().getInt("LengthCm"))) : 0;
 	}
 
 	public static ResourceLocation type(ItemStack stack)
@@ -53,19 +62,19 @@ public final class SpoolItem extends Item
 		return stack.hasTag() ? ResourceLocation.tryParse(stack.getTag().getString("Wire")) : null;
 	}
 
-	public static void set(ItemStack stack, ResourceLocation wire, int length)
+	public static void set(ItemStack stack, ResourceLocation wireType, int length)
 	{
 		CompoundTag tag = stack.getOrCreateTag();
 
-		if (length <= 0 || wire == null)
+		if (length <= 0 || wireType == null)
 		{
 			tag.remove("Wire");
 			tag.remove("LengthCm");
 		}
 		else
 		{
-			tag.putString("Wire", wire.toString());
-			tag.putInt("LengthCm", Math.min(length, SpoolMath.capacity()));
+			tag.putString("Wire", wireType.toString());
+			tag.putInt("LengthCm", Math.min(length, WiresConfig.spoolCapacity()));
 		}
 
 		tag.remove("Start");
@@ -81,13 +90,13 @@ public final class SpoolItem extends Item
 	{
 		WireType wireType = WireType.of(wire.getItem());
 
-		if (wireType == null || length(spool) > SpoolMath.capacity() - 100 ||
+		if (wireType == null || length(spool) > WiresConfig.spoolCapacity() - 100 ||
 			(length(spool) > 0 && !wireType.id().equals(type(spool))))
 		{
 			return false;
 		}
 
-		int count = Math.min(wire.getCount(), (SpoolMath.capacity() - length(spool)) / 100);
+		int count = Math.min(wire.getCount(), (WiresConfig.spoolCapacity() - length(spool)) / 100);
 
 		set(spool, wireType.id(), length(spool) + count * 100);
 
@@ -146,7 +155,7 @@ public final class SpoolItem extends Item
 			return ItemStack.EMPTY;
 		}
 
-		int n = SpoolMath.removableItems(length(spool), new ItemStack(item).getMaxStackSize());
+		int n = removableItems(length(spool), new ItemStack(item).getMaxStackSize());
 
 		if (n == 0)
 		{
@@ -203,7 +212,7 @@ public final class SpoolItem extends Item
 			return false;
 		}
 
-		// Also support carrying a spool and right clicking a wire stack.
+		// Also support carrying a spool and right clicking a cable stack.
 		if (!slot.getItem().isEmpty())
 		{
 			return wind(spool, slot.getItem(), player);
@@ -327,7 +336,7 @@ public final class SpoolItem extends Item
 
 		BlockPos start = BlockPos.of(tag.getLong("Start"));
 
-		if (!WireNetwork.get((ServerLevel) level).hasConnector(start))
+		if (!CableNetwork.get((ServerLevel) level).hasConnector(start))
 		{
 			tag.remove("Start");
 			message(player, "missing_start");
@@ -347,7 +356,7 @@ public final class SpoolItem extends Item
 			return InteractionResult.CONSUME;
 		}
 
-		int cm = WireGraph.lengthCm(start, end);
+		int cm = CableGraph.lengthCm(start, end);
 
 		if (cm > WiresConfig.connectionMaxLength())
 		{
@@ -372,7 +381,7 @@ public final class SpoolItem extends Item
 			return InteractionResult.CONSUME;
 		}
 
-		if (!WireNetwork.get((ServerLevel) level).connect(start, end, wire, cm))
+		if (!CableNetwork.get((ServerLevel) level).connect(start, end, wire, cm))
 		{
 			message(player, "duplicate");
 
@@ -420,7 +429,7 @@ public final class SpoolItem extends Item
 	@Override
 	public int getBarWidth(@NotNull ItemStack stack)
 	{
-		return Math.round(13f * length(stack) / SpoolMath.capacity());
+		return Math.round(13f * length(stack) / WiresConfig.spoolCapacity());
 	}
 
 	@Override

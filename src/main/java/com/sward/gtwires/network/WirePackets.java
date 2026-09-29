@@ -1,9 +1,8 @@
 package com.sward.gtwires.network;
 
 import com.sward.gtwires.GregTechWires;
-import com.sward.gtwires.client.WireClient;
+import com.sward.gtwires.client.ClientCableNetwork;
 import com.sward.gtwires.network.clientbound.*;
-import com.sward.gtwires.network.serverbound.CutEdgePacket;
 import net.minecraftforge.api.distmarker.Dist;
 import net.minecraftforge.fml.DistExecutor;
 import net.minecraftforge.network.*;
@@ -13,9 +12,9 @@ public final class WirePackets
 {
 	public static final SimpleChannel CHANNEL = NetworkRegistry.newSimpleChannel(
 		GregTechWires.id("wires"),
-		() -> "100",
-		"100"::equals,
-		"100"::equals
+		() -> "1",
+		"1"::equals,
+		"1"::equals
 	);
 
 	public static void init()
@@ -29,61 +28,55 @@ public final class WirePackets
 			.decoder(SyncGraphPacket::decode)
 			.consumerMainThread((msg, ctx) -> DistExecutor.unsafeRunWhenOn(
 				Dist.CLIENT,
-				() -> () -> WireClient.syncGraph(msg)
+				() -> () -> ClientCableNetwork.syncGraph(msg)
 			))
 			.add();
 
-		CHANNEL.messageBuilder(ResetGraphPacket.class, id++, NetworkDirection.PLAY_TO_CLIENT)
-			.encoder(ResetGraphPacket::encode)
-			.decoder(ResetGraphPacket::decode)
+		CHANNEL.messageBuilder(AddConnectorPacket.class, id++, NetworkDirection.PLAY_TO_CLIENT)
+			.encoder(AddConnectorPacket::encode)
+			.decoder(AddConnectorPacket::decode)
 			.consumerMainThread((msg, ctx) -> DistExecutor.unsafeRunWhenOn(
 				Dist.CLIENT,
-				() -> () -> WireClient.resetGraphPacket(msg)
+				() -> () -> ClientCableNetwork.addConnectorPacket(msg)
 			))
 			.add();
 
-		CHANNEL.messageBuilder(AddNodePacket.class, id++, NetworkDirection.PLAY_TO_CLIENT)
-			.encoder(AddNodePacket::encode)
-			.decoder(AddNodePacket::decode)
+		CHANNEL.messageBuilder(AddCablePacket.class, id++, NetworkDirection.PLAY_TO_CLIENT)
+			.encoder(AddCablePacket::encode)
+			.decoder(AddCablePacket::decode)
 			.consumerMainThread((msg, ctx) -> DistExecutor.unsafeRunWhenOn(
 				Dist.CLIENT,
-				() -> () -> WireClient.addNodePacket(msg)
+				() -> () -> ClientCableNetwork.addCablePacket(msg)
 			))
 			.add();
 
-		CHANNEL.messageBuilder(AddEdgePacket.class, id++, NetworkDirection.PLAY_TO_CLIENT)
-			.encoder(AddEdgePacket::encode)
-			.decoder(AddEdgePacket::decode)
+		CHANNEL.messageBuilder(RemoveConnectorPacket.class, id++, NetworkDirection.PLAY_TO_CLIENT)
+			.encoder(RemoveConnectorPacket::encode)
+			.decoder(RemoveConnectorPacket::decode)
 			.consumerMainThread((msg, ctx) -> DistExecutor.unsafeRunWhenOn(
 				Dist.CLIENT,
-				() -> () -> WireClient.addEdgePacket(msg)
+				() -> () -> ClientCableNetwork.removeConnectorPacket(msg)
 			))
 			.add();
 
-		CHANNEL.messageBuilder(RemoveNodePacket.class, id++, NetworkDirection.PLAY_TO_CLIENT)
-			.encoder(RemoveNodePacket::encode)
-			.decoder(RemoveNodePacket::decode)
+		CHANNEL.messageBuilder(RemoveCablePacket.class, id++, NetworkDirection.PLAY_TO_CLIENT)
+			.encoder(RemoveCablePacket::encode)
+			.decoder(RemoveCablePacket::decode)
 			.consumerMainThread((msg, ctx) -> DistExecutor.unsafeRunWhenOn(
 				Dist.CLIENT,
-				() -> () -> WireClient.removeNodePacket(msg)
+				() -> () -> ClientCableNetwork.removeCablePacket(msg)
 			))
 			.add();
 
-		CHANNEL.messageBuilder(RemoveEdgePacket.class, id++, NetworkDirection.PLAY_TO_CLIENT)
-			.encoder(RemoveEdgePacket::encode)
-			.decoder(RemoveEdgePacket::decode)
+		CHANNEL.messageBuilder(CableColorChangedPacket.class, id++, NetworkDirection.PLAY_TO_CLIENT)
+			.encoder(CableColorChangedPacket::encode)
+			.decoder(CableColorChangedPacket::decode)
 			.consumerMainThread((msg, ctx) -> DistExecutor.unsafeRunWhenOn(
 				Dist.CLIENT,
-				() -> () -> WireClient.removeEdgePacket(msg)
+				() -> () -> ClientCableNetwork.cableColorChangedPacket(msg)
 			))
 			.add();
 
 		// Serverbound
-
-		CHANNEL.messageBuilder(CutEdgePacket.class, id++, NetworkDirection.PLAY_TO_SERVER)
-			.encoder(CutEdgePacket::encode)
-			.decoder(CutEdgePacket::decode)
-			.consumerMainThread(CutEdgePacket::handle)
-			.add();
 	}
 }

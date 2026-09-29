@@ -8,15 +8,15 @@ public class WiresConfig
 	static final ForgeConfigSpec SPEC;
 	public static final WiresConfig COMMON;
 
-	public final ForgeConfigSpec.IntValue spoolMaxCapacity;
+	public final ForgeConfigSpec.IntValue spoolCapacity;
 
 	public final ForgeConfigSpec.IntValue connectionMaxLength;
 
 	public WiresConfig(ForgeConfigSpec.Builder builder)
 	{
-		spoolMaxCapacity = builder
+		spoolCapacity = builder
 			.translation("config.gtwires.spool_max_capacity")
-			.comment("How much wire a spool can hold (in meters)")
+			.comment("How much cable a spool can hold (in meters)")
 			.defineInRange("spool_max_capacity", 256, 1, Integer.MAX_VALUE);
 
 		connectionMaxLength = builder
@@ -37,13 +37,18 @@ public class WiresConfig
 		COMMON = pair.getLeft();
 	}
 
+	public static int spoolCapacity()
+	{
+		return COMMON.spoolCapacity.get() * 100;
+	}
+
 	public static int connectionMaxLength()
 	{
 		int val = COMMON.connectionMaxLength.get();
 
 		if (val <= 0D)
 		{
-			return COMMON.spoolMaxCapacity.get() * 100;
+			return COMMON.spoolCapacity.get() * 100;
 		}
 
 		return val;

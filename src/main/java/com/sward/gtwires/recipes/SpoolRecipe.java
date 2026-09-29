@@ -2,7 +2,6 @@ package com.sward.gtwires.recipes;
 
 import com.sward.gtwires.GregTechWires;
 import com.sward.gtwires.items.SpoolItem;
-import com.sward.gtwires.core.SpoolMath;
 import net.minecraft.core.NonNullList;
 import net.minecraft.core.RegistryAccess;
 import net.minecraft.resources.ResourceLocation;
@@ -66,7 +65,7 @@ public final class SpoolRecipe extends CustomRecipe
 
 		return SpoolItem.length(from) > 0 && SpoolItem.type(from) != null &&
 			(SpoolItem.length(to) == 0 || Objects.equals(SpoolItem.type(to), SpoolItem.type(from))) &&
-			SpoolMath.transferable(SpoolItem.length(from), SpoolItem.length(to)) > 0;
+			SpoolItem.transferable(SpoolItem.length(from), SpoolItem.length(to)) > 0;
 	}
 
 	@Override
@@ -83,7 +82,7 @@ public final class SpoolRecipe extends CustomRecipe
 			SpoolItem.set(
 				out,
 				SpoolItem.type(from),
-				SpoolItem.length(to) + SpoolMath.transferable(SpoolItem.length(from), SpoolItem.length(to))
+				SpoolItem.length(to) + SpoolItem.transferable(SpoolItem.length(from), SpoolItem.length(to))
 			);
 		}
 
@@ -105,7 +104,7 @@ public final class SpoolRecipe extends CustomRecipe
 			SpoolItem.set(
 				donor,
 				SpoolItem.type(from),
-				SpoolItem.length(from) - SpoolMath.transferable(SpoolItem.length(from), SpoolItem.length(to))
+				SpoolItem.length(from) - SpoolItem.transferable(SpoolItem.length(from), SpoolItem.length(to))
 			);
 
 			remains.set(slots.get(1), donor);

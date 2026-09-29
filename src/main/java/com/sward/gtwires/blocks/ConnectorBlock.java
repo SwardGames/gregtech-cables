@@ -1,6 +1,6 @@
 package com.sward.gtwires.blocks;
 
-import com.sward.gtwires.network.WireNetwork;
+import com.sward.gtwires.graph.CableNetwork;
 import net.minecraft.core.*;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.world.item.context.BlockPlaceContext;
@@ -98,7 +98,7 @@ public final class ConnectorBlock extends BaseEntityBlock
 	{
 		if (!old.is(next.getBlock()) && level instanceof ServerLevel server)
 		{
-			WireNetwork.get(server).removeConnector(pos);
+			CableNetwork.get(server).removeConnector(pos);
 		}
 
 		super.onRemove(old, level, pos, next, moving);

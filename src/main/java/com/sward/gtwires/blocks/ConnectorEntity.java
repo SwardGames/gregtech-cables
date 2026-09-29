@@ -3,7 +3,7 @@ package com.sward.gtwires.blocks;
 import com.gregtechceu.gtceu.api.capability.IEnergyContainer;
 import com.gregtechceu.gtceu.api.capability.forge.GTCapability;
 import com.sward.gtwires.GregTechWires;
-import com.sward.gtwires.network.WireNetwork;
+import com.sward.gtwires.graph.CableNetwork;
 import net.minecraft.core.*;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.world.level.block.entity.BlockEntity;
@@ -33,7 +33,7 @@ public final class ConnectorEntity extends BlockEntity implements IEnergyContain
 
 		if (level instanceof ServerLevel server)
 		{
-			WireNetwork.get(server).addConnector(worldPosition, attachedSide());
+			CableNetwork.get(server).addConnector(worldPosition, attachedSide());
 		}
 	}
 
@@ -66,7 +66,7 @@ public final class ConnectorEntity extends BlockEntity implements IEnergyContain
 	public long acceptEnergyFromNetwork(Direction side, long voltage, long amps)
 	{
 		return !isRemoved() && inputsEnergy(side) && level instanceof ServerLevel server
-			? WireNetwork.get(server).transfer(worldPosition, voltage, amps)
+			? CableNetwork.get(server).transfer(worldPosition, voltage, amps)
 			: 0;
 	}
 

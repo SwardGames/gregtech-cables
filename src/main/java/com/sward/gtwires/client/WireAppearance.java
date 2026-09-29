@@ -38,9 +38,9 @@ public final class WireAppearance
 		CACHE.clear();
 	}
 
-	public static Appearance get(ResourceLocation wire)
+	public static Appearance get(ResourceLocation wireType)
 	{
-		return CACHE.computeIfAbsent(wire, WireAppearance::resolve);
+		return CACHE.computeIfAbsent(wireType, WireAppearance::resolve);
 	}
 
 	private static Appearance resolve(ResourceLocation wire)

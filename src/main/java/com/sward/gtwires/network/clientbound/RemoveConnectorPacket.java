@@ -3,7 +3,7 @@ package com.sward.gtwires.network.clientbound;
 import net.minecraft.network.FriendlyByteBuf;
 import net.minecraft.resources.ResourceLocation;
 
-public record RemoveNodePacket(ResourceLocation dimension, long id)
+public record RemoveConnectorPacket(ResourceLocation dimension, long id)
 {
 	public void encode(FriendlyByteBuf buf)
 	{
@@ -11,8 +11,8 @@ public record RemoveNodePacket(ResourceLocation dimension, long id)
 		buf.writeVarLong(id);
 	}
 
-	public static RemoveNodePacket decode(FriendlyByteBuf buf)
+	public static RemoveConnectorPacket decode(FriendlyByteBuf buf)
 	{
-		return new RemoveNodePacket(buf.readResourceLocation(), buf.readVarLong());
+		return new RemoveConnectorPacket(buf.readResourceLocation(), buf.readVarLong());
 	}
 }

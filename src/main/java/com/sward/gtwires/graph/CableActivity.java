@@ -1,15 +1,15 @@
-package com.sward.gtwires.core;
+package com.sward.gtwires.graph;
 
 import java.util.Arrays;
 
-public final class WireActivity
+public final class CableActivity
 {
 	private final long[] ticks = new long[20];
 	private final long[] amps = new long[20];
 	private long latest = Long.MIN_VALUE;
 	private long maxVoltage;
 
-	public WireActivity()
+	public CableActivity()
 	{
 		Arrays.fill(ticks, Long.MIN_VALUE);
 	}

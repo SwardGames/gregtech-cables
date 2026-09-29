@@ -4,7 +4,7 @@ import net.minecraft.core.Direction;
 import net.minecraft.network.FriendlyByteBuf;
 import net.minecraft.resources.ResourceLocation;
 
-public record AddNodePacket(ResourceLocation dimension, long id, Direction direction)
+public record AddConnectorPacket(ResourceLocation dimension, long id, Direction direction)
 {
 	public void encode(FriendlyByteBuf buf)
 	{
@@ -13,8 +13,8 @@ public record AddNodePacket(ResourceLocation dimension, long id, Direction direc
 		buf.writeEnum(direction);
 	}
 
-	public static AddNodePacket decode(FriendlyByteBuf buf)
+	public static AddConnectorPacket decode(FriendlyByteBuf buf)
 	{
-		return new AddNodePacket(buf.readResourceLocation(), buf.readVarLong(), buf.readEnum(Direction.class));
+		return new AddConnectorPacket(buf.readResourceLocation(), buf.readVarLong(), buf.readEnum(Direction.class));
 	}
 }

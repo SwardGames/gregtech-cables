@@ -1,6 +1,6 @@
 package com.sward.gtwires.network.clientbound;
 
-import com.sward.gtwires.network.WireNetwork;
+import com.sward.gtwires.graph.Cable;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
 import net.minecraft.network.FriendlyByteBuf;
@@ -10,55 +10,56 @@ import net.minecraft.server.level.ServerLevel;
 import java.util.Collection;
 import java.util.Map;
 
-public record SyncGraphPacket(ResourceLocation dimension, NodeData[] nodes, EdgeData[] edges)
+public record SyncGraphPacket(ResourceLocation dimension, ConnectorData[] connectors, CableData[] cables)
 {
-	public record NodeData(long id, Direction direction)
+	public record ConnectorData(long id, Direction direction)
 	{
 	}
 
-	public record EdgeData(long id, BlockPos a, BlockPos b, ResourceLocation wire)
+	public record CableData(long id, BlockPos a, BlockPos b, ResourceLocation wireType, int color)
 	{
 	}
 
-	public static SyncGraphPacket create(ServerLevel level, Map<Long, Direction> nodeMap, Collection<WireNetwork.Link> links)
+	public static SyncGraphPacket create(ServerLevel level, Map<Long, Direction> connectorsMap, Collection<Cable> cablesCollection)
 	{
-		int nodeIdx = 0;
-		NodeData[] nodes = new NodeData[nodeMap.size()];
-		for (Map.Entry<Long, Direction> node : nodeMap.entrySet())
+		int connectorIdx = 0;
+		ConnectorData[] connectors = new ConnectorData[connectorsMap.size()];
+		for (Map.Entry<Long, Direction> connector : connectorsMap.entrySet())
 		{
-			nodes[nodeIdx++] = new NodeData(node.getKey(), node.getValue());
+			connectors[connectorIdx++] = new ConnectorData(connector.getKey(), connector.getValue());
 		}
 
-		int edgeIdx = 0;
-		EdgeData[] edges = new EdgeData[links.size()];
-		for (WireNetwork.Link link : links)
+		int cableIdx = 0;
+		CableData[] cables = new CableData[cablesCollection.size()];
+		for (Cable cable : cablesCollection)
 		{
-			edges[edgeIdx++] = new EdgeData(link.id(), link.a(), link.b(), link.wire());
+			cables[cableIdx++] = new CableData(cable.id, cable.a, cable.b, cable.wireType.id(), cable.color);
 		}
 
-		return new SyncGraphPacket(level.dimension().location(), nodes, edges);
+		return new SyncGraphPacket(level.dimension().location(), connectors, cables);
 	}
 
 	public void encode(FriendlyByteBuf buf)
 	{
 		buf.writeResourceLocation(dimension);
 
-		buf.writeVarInt(nodes.length);
+		buf.writeVarInt(connectors.length);
 
-		for (NodeData node : nodes)
+		for (ConnectorData connector : connectors)
 		{
-			buf.writeVarLong(node.id);
-			buf.writeEnum(node.direction);
+			buf.writeVarLong(connector.id);
+			buf.writeEnum(connector.direction);
 		}
 
-		buf.writeVarInt(edges.length);
+		buf.writeVarInt(cables.length);
 
-		for (EdgeData edge : edges)
+		for (CableData cable : cables)
 		{
-			buf.writeVarLong(edge.id);
-			buf.writeBlockPos(edge.a);
-			buf.writeBlockPos(edge.b);
-			buf.writeResourceLocation(edge.wire);
+			buf.writeVarLong(cable.id);
+			buf.writeBlockPos(cable.a);
+			buf.writeBlockPos(cable.b);
+			buf.writeResourceLocation(cable.wireType);
+			buf.writeInt(cable.color);
 		}
 	}
 
@@ -66,27 +67,28 @@ public record SyncGraphPacket(ResourceLocation dimension, NodeData[] nodes, Edge
 	{
 		ResourceLocation dimension = buf.readResourceLocation();
 
-		int nodeCount = buf.readVarInt();
-		NodeData[] nodes = new NodeData[nodeCount];
+		int connectorCount = buf.readVarInt();
+		ConnectorData[] connectors = new ConnectorData[connectorCount];
 
-		for (int i = 0; i < nodeCount; ++i)
+		for (int i = 0; i < connectorCount; ++i)
 		{
-			nodes[i] = new NodeData(buf.readVarLong(), buf.readEnum(Direction.class));
+			connectors[i] = new ConnectorData(buf.readVarLong(), buf.readEnum(Direction.class));
 		}
 
-		int edgeCount = buf.readVarInt();
-		EdgeData[] edges = new EdgeData[edgeCount];
+		int cablesCount = buf.readVarInt();
+		CableData[] cables = new CableData[cablesCount];
 
-		for (int i = 0; i < edgeCount; ++i)
+		for (int i = 0; i < cablesCount; ++i)
 		{
-			edges[i] = new EdgeData(
+			cables[i] = new CableData(
 				buf.readVarLong(),
 				buf.readBlockPos(),
 				buf.readBlockPos(),
-				buf.readResourceLocation()
+				buf.readResourceLocation(),
+				buf.readInt()
 			);
 		}
 
-		return new SyncGraphPacket(dimension, nodes, edges);
+		return new SyncGraphPacket(dimension, connectors, cables);
 	}
 }

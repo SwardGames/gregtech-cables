@@ -1,4 +1,4 @@
-package com.sward.gtwires.core;
+package com.sward.gtwires.graph;
 
 import net.minecraft.world.phys.Vec3;
 import net.minecraft.world.phys.AABB;
