@@ -2,6 +2,7 @@ package com.sward.gtcables.graph;
 
 import com.gregtechceu.gtceu.api.capability.IEnergyContainer;
 import com.gregtechceu.gtceu.api.capability.forge.GTCapability;
+import com.gregtechceu.gtceu.api.item.tool.ToolHelper;
 import com.gregtechceu.gtceu.common.data.GTDamageTypes;
 import com.gregtechceu.gtceu.common.data.GTItems;
 import com.gregtechceu.gtceu.common.item.ColorSprayBehaviour;
@@ -11,6 +12,9 @@ import com.sward.gtcables.blocks.ConnectorEntity;
 import com.sward.gtcables.items.SpoolItem;
 import com.sward.gtcables.network.CablePackets;
 import com.sward.gtcables.network.clientbound.*;
+import it.unimi.dsi.fastutil.ints.Int2ObjectMap;
+import it.unimi.dsi.fastutil.ints.Int2ObjectOpenHashMap;
+import it.unimi.dsi.fastutil.longs.*;
 import net.minecraft.FieldsAreNonnullByDefault;
 import net.minecraft.MethodsReturnNonnullByDefault;
 import net.minecraft.core.*;
@@ -27,7 +31,6 @@ import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.level.Level;
 import net.minecraft.world.level.block.entity.BlockEntity;
 import net.minecraft.world.level.block.Block;
-import net.minecraft.world.phys.Vec3;
 import net.minecraft.world.level.saveddata.SavedData;
 import net.minecraftforge.event.entity.player.PlayerInteractEvent;
 import net.minecraftforge.network.PacketDistributor;
@@ -40,7 +43,8 @@ import java.util.*;
 import static com.gregtechceu.gtceu.api.blockentity.IPaintable.UNPAINTED_COLOR;
 
 /**
- * Owned by dimension SavedData, so relay chunks never need to be loaded.
+ * The cable network, stored per-dimension.
+ * This allows for cables to transmit power through unloaded chunks.
  */
 @FieldsAreNonnullByDefault
 @ParametersAreNonnullByDefault
@@ -64,12 +68,12 @@ public final class CableNetwork extends SavedData
 
 	private final ServerLevel level;
 	private final CableGraph graph = new CableGraph();
-	private final Map<Long, Long> used = new HashMap<>();
-	private final Map<Long, Heat> heat = new HashMap<>();
-	private final Set<Long> activeNodes = new HashSet<>();
+	private final Long2LongMap used = new Long2LongOpenHashMap();
+	private final Long2ObjectMap<Heat> heat = new Long2ObjectOpenHashMap<>();
+	private final LongSet activeNodes = new LongOpenHashSet();
 
-	private final Map<Long, Exposure> exposures = new HashMap<>();
-	private final Set<Long> powered = new HashSet<>();
+	private final Long2ObjectMap<Exposure> exposures = new Long2ObjectOpenHashMap<>();
+	private final LongSet powered = new LongOpenHashSet();
 	private long poweredTick = Long.MIN_VALUE;
 	private long nextId = 1;
 
@@ -176,8 +180,8 @@ public final class CableNetwork extends SavedData
 				cable.id,
 				new Exposure(
 					new CableGeometry.ContactShape(
-						Vec3.atCenterOf(cable.a),
-						Vec3.atCenterOf(cable.b),
+						graph.getConnectorPosition(cable.a),
+						graph.getConnectorPosition(cable.b),
 						cable.cableType.thickness() / 2
 					),
 					new CableActivity()
@@ -373,8 +377,8 @@ public final class CableNetwork extends SavedData
 
 		long accepted = 0;
 
-		Set<Long> rejected = new HashSet<>();
-		Set<Long> voltageHeated = new HashSet<>();
+		LongSet rejected = new LongOpenHashSet();
+		LongSet voltageHeated = new LongOpenHashSet();
 
 		Map<List<Long>, Long> routeFractions = new HashMap<>();
 
@@ -382,8 +386,8 @@ public final class CableNetwork extends SavedData
 		{
 			while (accepted < amps)
 			{
-				Map<Long, Cable> previous = new HashMap<>();
-				Map<Long, Long> distances = new HashMap<>();
+				Long2ObjectMap<Cable> previous = new Long2ObjectOpenHashMap<>();
+				Long2LongMap distances = new Long2LongOpenHashMap();
 				PriorityQueue<Step> queue = new PriorityQueue<>(
 					Comparator.comparingLong(Step::loss).thenComparingLong(Step::node)
 				);
@@ -452,7 +456,7 @@ public final class CableNetwork extends SavedData
 
 				List<Long> key = path.stream().map(Cable::id).toList();
 
-				long loss = distances.get(target);
+				long loss = distances.get((long)target);
 				long fraction = routeFractions.getOrDefault(key, 0L);
 				long packetLoss = loss / 100 + roundedLoss(fraction + loss % 100) - roundedLoss(fraction);
 				long packetVoltage = voltage - packetLoss;
@@ -485,7 +489,7 @@ public final class CableNetwork extends SavedData
 				// cascade through a normal GregTech cable network during the same energy push.
 				path.forEach(c -> used.merge(c.id, 1L, (a, b) -> a == Long.MAX_VALUE ? a : a + b));
 
-				Set<Long> reservation = new HashSet<>();
+				LongSet reservation = new LongOpenHashSet();
 
 				path.forEach(
 					c ->
@@ -649,7 +653,7 @@ public final class CableNetwork extends SavedData
 	{
 		Inventory inventory = player.getInventory();
 
-		Map<Integer, ItemStack> edits = new LinkedHashMap<>();
+		Int2ObjectMap<ItemStack> edits = new Int2ObjectOpenHashMap<>();
 
 		for (Cable edge : cables)
 		{
@@ -753,17 +757,21 @@ public final class CableNetwork extends SavedData
 
 		if (!level.mayInteract(player, cable.a) || !level.mayInteract(player, cable.b))
 		{
+			e.setCancellationResult(InteractionResult.CONSUME);
+
 			return;
 		}
 
 		if (!recover(player, List.of(cable), true))
 		{
+			e.setCancellationResult(InteractionResult.CONSUME);
+
 			SpoolItem.message(player, "no_space");
 
 			return;
 		}
 
-		e.getItemStack().hurtAndBreak(1, player, p -> p.broadcastBreakEvent(e.getHand()));
+		ToolHelper.damageItem(e.getItemStack(), player, 1);
 
 		SpoolItem.message(player, "recovered");
 	}
@@ -791,13 +799,25 @@ public final class CableNetwork extends SavedData
 
 		if (!level.mayInteract(player, cable.a) || !level.mayInteract(player, cable.b))
 		{
+			e.setCancellationResult(InteractionResult.CONSUME);
+
 			return;
 		}
 
 		// If color is null it means the player is using a solvent, so remove the painting color
 		int rgb = color == null ? UNPAINTED_COLOR : color.getMapColor().col;
 
+		// Do nothing if painting the same color.
+		if (cable.color == rgb)
+		{
+			e.setCancellationResult(InteractionResult.CONSUME);
+
+			return;
+		}
+
 		cable.color = rgb;
+
+		setDirty();
 
 		CablePackets.CHANNEL.send(
 			PacketDistributor.DIMENSION.with(level::dimension),

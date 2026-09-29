@@ -23,6 +23,8 @@ import java.math.BigDecimal;
 import java.util.ArrayList;
 import java.util.List;
 
+import static com.gregtechceu.gtceu.api.blockentity.IPaintable.UNPAINTED_COLOR;
+
 /**
  * Jade discovers this class only when installed. No production class depends on Jade.
  */
@@ -83,7 +85,7 @@ public final class CablesJadePlugin implements IWailaPlugin
 
 		lines.add(Component.translatable("jade.gtcables.length", decimal(cable.lengthCm, 2)));
 
-		if (cable.color != 0)
+		if (cable.color != UNPAINTED_COLOR)
 		{
 			lines.add(
 				Component.translatable("gtceu.top.stained", String.format("#%06X", cable.color))

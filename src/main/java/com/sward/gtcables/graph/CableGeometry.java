@@ -24,13 +24,15 @@ public final class CableGeometry
 	 */
 	public static final class Mesh
 	{
+		public final AABB bounds;
+		public final double radius;
+
 		private final Vec3[] points;
 		private final Vec3[] tangents;
 		private final Vec3[] across;
 		private final Vec3[] up;
 		private final Vec3[][] rings;
 		private final double[] distances;
-		private final AABB bounds;
 
 		public Mesh(Vec3 a, Vec3 b, double radius)
 		{
@@ -91,6 +93,7 @@ public final class CableGeometry
 			}
 
 			bounds = total.inflate(1e-9D);
+			this.radius = radius;
 		}
 
 		public int size()
@@ -116,11 +119,6 @@ public final class CableGeometry
 		public double distance(int i)
 		{
 			return distances[i];
-		}
-
-		public AABB bounds()
-		{
-			return bounds;
 		}
 
 		public Vec3 normal(int ring, int side)
@@ -163,7 +161,7 @@ public final class CableGeometry
 				segments[i] = new Segment(vertices);
 			}
 
-			bounds = mesh.bounds();
+			bounds = mesh.bounds;
 		}
 
 		public boolean touches(AABB body)
@@ -289,11 +287,21 @@ public final class CableGeometry
 		}
 	}
 
+	/// Returns how many segments are in a cable going from a to b.
+	/// This will be at least 16 to ensure a smooth curve
+	/// @param a The cable's first point
+	/// @param b The cable's second point
+	/// @return How many segments are in the cable
 	public static int segments(Vec3 a, Vec3 b)
 	{
 		return Math.max(16, (int) Math.ceil(a.distanceTo(b)));
 	}
 
+	/// Finds the position of the cable at the given distance from a to b
+	/// @param a The cable's first point
+	/// @param b The cable's second point
+	/// @param t The normalized distance from a to b
+	/// @return The position at t
 	public static Vec3 point(Vec3 a, Vec3 b, double t)
 	{
 		Vec3 delta = b.subtract(a);
@@ -314,10 +322,15 @@ public final class CableGeometry
 		return new Vec3(a.x + delta.x * t, a.y + y, a.z + delta.z * t);
 	}
 
-	/**
-	 * Earliest ray parameter within cable radius, or infinity. Ray direction must be unit length.
-	 */
-	public static double hit(Vec3 a, Vec3 b, Vec3 eye, Vec3 direction, double reach, double radius)
+	/// Calculates the hit distance to the given cable, or infinity if no hit is found
+	/// @param a The cable's first point
+	/// @param b The cable's second point
+	/// @param start The start position
+	/// @param direction The direction (must be unit)
+	/// @param reach How far to check
+	/// @param radius The radius of the cable
+	/// @return The hit distance, or infinity if not found
+	public static double hit(Vec3 a, Vec3 b, Vec3 start, Vec3 direction, double reach, double radius)
 	{
 		int n = segments(a, b);
 		Vec3 previous = a;
@@ -327,7 +340,7 @@ public final class CableGeometry
 		{
 			Vec3 next = point(a, b, i / (double) n);
 			Vec3 edge = next.subtract(previous);
-			Vec3 offset = eye.subtract(previous);
+			Vec3 offset = start.subtract(previous);
 
 			double ee = edge.lengthSqr();
 			double de = direction.dot(edge);
@@ -338,13 +351,13 @@ public final class CableGeometry
 
 			along = Math.max(0, Math.min(1, along));
 
-			double ray = Math.max(0, Math.min(reach, previous.add(edge.scale(along)).subtract(eye).dot(direction)));
+			double ray = Math.max(0, Math.min(reach, previous.add(edge.scale(along)).subtract(start).dot(direction)));
 
 			along = ee < 1e-12D
 				? 0
-				: Math.max(0, Math.min(1, eye.add(direction.scale(ray)).subtract(previous).dot(edge) / ee));
+				: Math.max(0, Math.min(1, start.add(direction.scale(ray)).subtract(previous).dot(edge) / ee));
 
-			if (eye.add(direction.scale(ray)).distanceToSqr(previous.add(edge.scale(along))) <= radius * radius)
+			if (start.add(direction.scale(ray)).distanceToSqr(previous.add(edge.scale(along))) <= radius * radius)
 			{
 				best = Math.min(best, ray);
 			}
@@ -353,5 +366,61 @@ public final class CableGeometry
 		}
 
 		return best;
+	}
+
+	/// Calculates the bounds of the cable connecting the two given points.
+	/// @param a The first point
+	/// @param b The second point
+	/// @param padding How much padding to give the bounds
+	/// @return The cables bounding box
+	public static AABB bounds(Vec3 a, Vec3 b, double padding)
+	{
+		return bounds(a.x, a.y, a.z, b.x, b.y, b.z, padding);
+	}
+
+	/// Calculates the bounds of the cable connecting the two given points.
+	/// @param ax The first point's x coordinate
+	/// @param ay The first point's y coordinate
+	/// @param az The first point's z coordinate
+	/// @param bx The second point's x coordinate
+	/// @param by The second point's y coordinate
+	/// @param bz The second point's z coordinate
+	/// @param padding How much padding to give the bounds
+	/// @return The cables bounding box
+	public static AABB bounds(double ax, double ay, double az, double bx, double by, double bz, double padding)
+	{
+		double minX = Math.min(ax, bx);
+		double minY = Math.min(ay, by);
+		double minZ = Math.min(az, bz);
+		double maxX = Math.max(ax, bx);
+		double maxY = Math.max(ay, by);
+		double maxZ = Math.max(az, bz);
+
+		double horizontal = Math.hypot(maxX - minX, maxZ - minZ);
+
+		if (horizontal > 1e-6D)
+		{
+			double tension = Math.max(2, horizontal * 1.5D);
+
+			double ratio = (maxY - minY) / (2 * tension * Math.sinh(horizontal / (2 * tension)));
+
+			double asinh = Math.copySign(Math.log(Math.abs(ratio) + Math.hypot(ratio, 1)), ratio);
+
+			double shift = horizontal / 2 - tension * asinh;
+
+			if (shift > 0 && shift < horizontal)
+			{
+				minY = Math.min(minY, minY + tension * (1 - Math.cosh(shift / tension)));
+			}
+		}
+
+		return new AABB(
+			minX - padding,
+			minY - padding,
+			minZ - padding,
+			maxX + padding,
+			maxY + padding,
+			maxZ + padding
+		);
 	}
 }

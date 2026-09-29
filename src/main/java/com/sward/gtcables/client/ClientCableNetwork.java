@@ -14,14 +14,13 @@ import com.sward.gtcables.util.CableTools;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.multiplayer.ClientLevel;
 import net.minecraft.client.renderer.*;
-import net.minecraft.client.renderer.texture.OverlayTexture;
-import net.minecraft.client.renderer.texture.TextureAtlasSprite;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.particles.ParticleTypes;
 import net.minecraft.nbt.CompoundTag;
 import net.minecraft.resources.ResourceLocation;
 import net.minecraft.sounds.SoundEvents;
 import net.minecraft.sounds.SoundSource;
+import net.minecraft.util.profiling.ProfilerFiller;
 import net.minecraft.world.InteractionResult;
 import net.minecraft.world.inventory.InventoryMenu;
 import net.minecraft.world.item.DyeColor;
@@ -43,7 +42,7 @@ import static com.gregtechceu.gtceu.api.blockentity.IPaintable.UNPAINTED_COLOR;
 @Mod.EventBusSubscriber(modid = GregTechCables.ID, value = Dist.CLIENT)
 public final class ClientCableNetwork
 {
-	private record Visual(Cable cable, float width, CableGeometry.Mesh mesh, CableGeometry.Mesh outlineMesh)
+	private record Visual(Cable cable, float width, BakedCableMesh mesh, BakedCableMesh outlineMesh)
 	{
 		public static Visual create(Cable cable)
 		{
@@ -55,8 +54,14 @@ public final class ClientCableNetwork
 			return new Visual(
 				cable,
 				width,
-				new CableGeometry.Mesh(aPos, bPos, width / 2),
-				new CableGeometry.Mesh(aPos, bPos, width / 2 + 0.015D)
+				new BakedCableMesh(
+					new CableGeometry.Mesh(aPos, bPos, width / 2),
+					CableAppearance.get(cable.cableType.id()).sprite()
+				),
+				new BakedCableMesh(
+					new CableGeometry.Mesh(aPos, bPos, width / 2 + 0.015D),
+					null
+				)
 			);
 		}
 	}
@@ -163,12 +168,108 @@ public final class ClientCableNetwork
 		}
 
 		Minecraft mc = Minecraft.getInstance();
-		Vec3 camera = event.getCamera().getPosition();
-		int renderDistance = CablesConfig.connectionMaxLength();
-		double radius = renderDistance == 0 ? mc.options.getEffectiveRenderDistance() * 16D : renderDistance;
+		ProfilerFiller profiler = mc.getProfiler();
 
-		// Bounds used for rendering. Note that it has an infinite height.
-		AABB renderBounds = new AABB(camera, camera).inflate(radius, Double.POSITIVE_INFINITY, radius);
+		profiler.push("gtcables_render");
+
+		try
+		{
+			Vec3 camera = event.getCamera().getPosition();
+			int renderDistance = CablesConfig.renderDistance();
+			double radius = renderDistance == 0 ? mc.options.getEffectiveRenderDistance() * 16D : renderDistance;
+
+			// Bounds used for rendering. Note that it has an infinite height.
+			AABB renderBounds = new AABB(camera, camera).inflate(radius, Double.POSITIVE_INFINITY, radius);
+
+			PoseStack poses = event.getPoseStack();
+			poses.pushPose();
+			poses.translate(-camera.x, -camera.y, -camera.z);
+
+			MultiBufferSource.BufferSource buffers = mc.renderBuffers().bufferSource();
+
+			profiler.push("gtcables_render_cables");
+
+			try
+			{
+				renderCables(event, buffers, renderBounds, poses);
+			}
+			finally
+			{
+				profiler.pop();
+			}
+
+			ItemStack mainHandItem = mc.player.getMainHandItem();
+			ItemStack offHandItem = mc.player.getOffhandItem();
+
+			profiler.push("gtcables_render_highlights");
+
+			try
+			{
+				CableHitResult hit = GRAPH.clip(mc.player);
+
+				if (hit != null)
+				{
+					Visual visual = CABLE_VISUALS.get(hit.cable());
+
+					if (visual != null)
+					{
+						if (!renderHeldItemCableHighlight(visual, mainHandItem, buffers, poses))
+						{
+							renderHeldItemCableHighlight(visual, offHandItem, buffers, poses);
+						}
+					}
+				}
+			}
+			finally
+			{
+				profiler.pop();
+			}
+
+			profiler.push("gtcables_visualize_spools");
+
+			try
+			{
+				if (CableTools.isSpool(mainHandItem, false))
+				{
+					visualizeSpool(mainHandItem, mc, buffers, poses);
+				}
+
+				if (CableTools.isSpool(offHandItem, false))
+				{
+					visualizeSpool(offHandItem, mc, buffers, poses);
+				}
+			}
+			finally
+			{
+				profiler.pop();
+			}
+
+			poses.popPose();
+		}
+		finally
+		{
+			profiler.pop();
+		}
+	}
+
+	public static @Nullable CableHitResult targetCable()
+	{
+		return GRAPH.clip(Minecraft.getInstance().player);
+	}
+
+	static void clearCableVisuals()
+	{
+		CABLE_VISUALS.clear();
+	}
+
+	private static void renderCables(
+		RenderLevelStageEvent event,
+		MultiBufferSource.BufferSource buffers,
+		AABB renderBounds,
+		PoseStack poses
+	)
+	{
+		VertexConsumer out = buffers.getBuffer(RENDER_TYPE);
 
 		// First, remove all wires which are now out of range
 		List<Cable> entriesToCull = new ArrayList<>(16);
@@ -189,73 +290,30 @@ public final class ClientCableNetwork
 		// Second, add missing wires
 		GRAPH.forEachOverlap(renderBounds, c -> CABLE_VISUALS.computeIfAbsent(c, Visual::create));
 
-		PoseStack poses = event.getPoseStack();
+		ClientLevel level = Minecraft.getInstance().level;
 
-		poses.pushPose();
-		poses.translate(-camera.x, -camera.y, -camera.z);
-
-		MultiBufferSource.BufferSource buffers = mc.renderBuffers().bufferSource();
-		VertexConsumer out = buffers.getBuffer(RENDER_TYPE);
-
+		// Finally, render all the cable visuals.
 		for (Visual visual : CABLE_VISUALS.values())
 		{
-			if (!event.getFrustum().isVisible(visual.mesh.bounds()))
+			if (!event.getFrustum().isVisible(visual.mesh.bounds))
 			{
 				continue;
 			}
 
-			float width = 16 * visual.width;
-
 			Cable cable = visual.cable();
-			CableAppearance.Appearance appearance = CableAppearance.get(cable.cableType.id());
+			CableAppearance appearance = CableAppearance.get(cable.cableType.id());
 
-			sides(
+			visual.mesh.render(
 				out,
 				poses.last(),
-				visual.mesh,
-				appearance.sprite(),
+				level,
 				(cable.color != UNPAINTED_COLOR) ? cable.color : appearance.color(),
-				width,
+				true,
 				false
 			);
 		}
 
 		buffers.endBatch(RENDER_TYPE);
-
-		ItemStack mainHandItem = mc.player.getMainHandItem();
-		ItemStack offHandItem = mc.player.getOffhandItem();
-
-		CableHitResult hit = GRAPH.clip(mc.player);
-
-		if (hit != null)
-		{
-			Visual visual = CABLE_VISUALS.get(hit.cable());
-
-			if (visual != null)
-			{
-				if (!renderHeldItemCableHighlight(visual, mainHandItem, buffers, poses))
-				{
-					renderHeldItemCableHighlight(visual, offHandItem, buffers, poses);
-				}
-			}
-		}
-
-		if (CableTools.isSpool(mainHandItem, false))
-		{
-			visualizeSpool(mainHandItem, mc, buffers, poses);
-		}
-
-		if (CableTools.isSpool(offHandItem, false))
-		{
-			visualizeSpool(offHandItem, mc, buffers, poses);
-		}
-
-		poses.popPose();
-	}
-
-	public static @Nullable CableHitResult targetCable()
-	{
-		return GRAPH.clip(Minecraft.getInstance().player);
 	}
 
 	private static boolean renderHeldItemCableHighlight(
@@ -269,13 +327,12 @@ public final class ClientCableNetwork
 		{
 			VertexConsumer outline = buffers.getBuffer(CableHighlight.TYPE);
 
-			sides(
+			visual.outlineMesh.render(
 				outline,
 				poses.last(),
-				visual.outlineMesh,
 				null,
 				0xFFFFFFFF,
-				16 * visual.width,
+				false,
 				true
 			);
 
@@ -290,13 +347,12 @@ public final class ClientCableNetwork
 		{
 			VertexConsumer outline = buffers.getBuffer(CableHighlight.TYPE);
 
-			sides(
+			visual.outlineMesh.render(
 				outline,
 				poses.last(),
-				visual.outlineMesh,
 				null,
-				spray.left == null ? 0x7FBFBFBF : spray.left.getMapColor().col,
-				16 * visual.width,
+				spray.left == null ? 0x7FBFBFBF : (spray.left.getMapColor().col | 0xFF000000),
+				false,
 				true
 			);
 
@@ -316,190 +372,104 @@ public final class ClientCableNetwork
 	)
 	{
 		CompoundTag tag = mainHandItem.getTag();
+
+		if (tag == null)
+		{
+			return;
+		}
+
 		ResourceLocation wireTypeId = SpoolItem.type(mainHandItem);
 		CableType cableType = wireTypeId == null ? null : CableType.of(wireTypeId);
 
-		if (tag != null && tag.contains("Start") && cableType != null)
+		// Ensure that the spool has a cable
+		if (cableType == null)
 		{
-			long startId = tag.getLong("Start");
-			BlockPos start = BlockPos.of(startId);
-			Vec3 startPos = GRAPH.getConnectorPosition(start);
+			return;
+		}
 
-			boolean hasConnector = false;
-			boolean isValid = true;
-			Vec3 end;
+		// Ensure that the spools dimension matches the current dimension
+		if (!tag.getString("Dimension").equals(dimension.toString()))
+		{
+			return;
+		}
 
-			if (mc.hitResult instanceof BlockHitResult hit &&
-				hit.getType() == HitResult.Type.BLOCK &&
-				mc.level.getBlockState(hit.getBlockPos()).is(GregTechCables.CONNECTOR.get()))
+		// Ensure that the spool has a start point
+		if (!tag.contains("Start"))
+		{
+			return;
+		}
+
+		long startId = tag.getLong("Start");
+		BlockPos start = BlockPos.of(startId);
+		Vec3 startPos = GRAPH.getConnectorPosition(start);
+
+		boolean hasConnector = false;
+		boolean isValid = true;
+		Vec3 end;
+
+		if (mc.hitResult instanceof BlockHitResult hit &&
+			hit.getType() == HitResult.Type.BLOCK &&
+			mc.level.getBlockState(hit.getBlockPos()).is(GregTechCables.CONNECTOR.get()))
+		{
+			BlockPos endBlockPos = hit.getBlockPos();
+
+			hasConnector = true;
+			end = GRAPH.getConnectorPosition(endBlockPos);
+
+			if (start.equals(endBlockPos))
 			{
-				BlockPos endBlockPos = hit.getBlockPos();
-
-				hasConnector = true;
-				end = GRAPH.getConnectorPosition(endBlockPos);
-
-				if (start.equals(endBlockPos))
-				{
-					isValid = false;
-				}
-
-				int cm = CableGraph.lengthCm(start, endBlockPos);
-
-				if (cm > CablesConfig.connectionMaxLength() || cm > SpoolItem.length(mainHandItem))
-				{
-					isValid = false;
-				}
-				else if (GRAPH.hasCable(startId, endBlockPos.asLong()))
-				{
-					isValid = false;
-				}
-			}
-			else
-			{
-				end = mc.hitResult.getLocation();
-
-				double dx = end.x - start.getX();
-				double dy = end.y - start.getY();
-				double dz = end.z - start.getZ();
-
-				double cm = Math.sqrt(dx * dx + dy * dy + dz * dz) * 100;
-
-				if (cm > CablesConfig.connectionMaxLength() || cm > SpoolItem.length(mainHandItem))
-				{
-					isValid = false;
-				}
+				isValid = false;
 			}
 
-			if (end.distanceToSqr(startPos) <= 272D * 272D)
+			int cm = CableGraph.lengthCm(start, endBlockPos);
+
+			if (cm > CablesConfig.connectionMaxLength() || cm > SpoolItem.length(mainHandItem))
 			{
-				float width = cableType.thickness();
-
-				CableGeometry.Mesh mesh = new CableGeometry.Mesh(startPos, end, width / 2);
-
-				VertexConsumer outline = buffers.getBuffer(CableHighlight.TYPE);
-				sides(
-					outline,
-					poses.last(),
-					mesh,
-					null,
-					isValid
-						? hasConnector ? GREEN : WHITE
-						: RED,
-					16 * width,
-					false
-				);
-				buffers.endBatch(CableHighlight.TYPE);
+				isValid = false;
+			}
+			else if (GRAPH.hasCable(startId, endBlockPos.asLong()))
+			{
+				isValid = false;
 			}
 		}
-	}
-
-	private static @NotNull Vec3 interpolate(@NotNull Vec3 a, @NotNull Vec3 b, double t)
-	{
-		return t <= 0 ? a : t >= 1 ? b : a.lerp(b, t);
-	}
-
-	private static void sides(
-		VertexConsumer out,
-		PoseStack.Pose pose,
-		CableGeometry.Mesh mesh,
-		TextureAtlasSprite sprite,
-		int color,
-		float width,
-		boolean inverted
-	)
-	{
-		ClientLevel level = Minecraft.getInstance().level;
-
-		for (int ring = 0; ring < mesh.size() - 1; ring++)
+		else
 		{
-			double start = mesh.distance(ring);
-			double end = mesh.distance(ring + 1);
-			double cursor = start;
+			end = mc.hitResult.getLocation();
 
-			int light = inverted
-				? LightTexture.FULL_BRIGHT
-				: LevelRenderer.getLightColor(level, BlockPos.containing(mesh.centre(ring)));
+			double dx = end.x - start.getX();
+			double dy = end.y - start.getY();
+			double dz = end.z - start.getZ();
 
-			// Split at metre boundaries so atlas UVs repeat continuously, without stretching or bleeding into adjacent sprites.
-			while (cursor < end - 1e-10D)
+			double cm = Math.sqrt(dx * dx + dy * dy + dz * dz) * 100;
+
+			if (cm > CablesConfig.connectionMaxLength() || cm > SpoolItem.length(mainHandItem))
 			{
-				double tile = Math.floor(cursor + 1e-9D);
-				double next = Math.min(end, tile + 1);
-				double t0 = (cursor - start) / (end - start);
-				double t1 = (next - start) / (end - start);
-
-				float u0 = sprite == null ? 0 : sprite.getU(8D - width / 2D);
-				float u1 = sprite == null ? 1 : sprite.getU(8D + width / 2D);
-
-				float v0 = sprite == null ? 0 : sprite.getV(16 * Math.max(0, Math.min(1, cursor - tile)));
-				float v1 = sprite == null ? 1 : sprite.getV(16 * Math.max(0, Math.min(1, next - tile)));
-
-				for (int face = 0; face < 4; face++)
-				{
-					int j = (face + 1) % 4;
-
-					Vec3 a = interpolate(mesh.corner(ring, face), mesh.corner(ring + 1, face), t0);
-					Vec3 b = interpolate(mesh.corner(ring, j), mesh.corner(ring + 1, j), t0);
-					Vec3 c = interpolate(mesh.corner(ring, j), mesh.corner(ring + 1, j), t1);
-					Vec3 d = interpolate(mesh.corner(ring, face), mesh.corner(ring + 1, face), t1);
-					Vec3 n0 = mesh.normal(ring, face).lerp(mesh.normal(ring + 1, face), t0).normalize();
-					Vec3 n1 = mesh.normal(ring, face).lerp(mesh.normal(ring + 1, face), t1).normalize();
-
-					quad(
-						out,
-						pose,
-						new Vec3[]{a, b, c, d},
-						new Vec3[]{n0, n0, n1, n1},
-						color,
-						light,
-						u0,
-						u1,
-						v0,
-						v1,
-						inverted
-					);
-				}
-
-				cursor = next;
+				isValid = false;
 			}
 		}
-	}
 
-	private static void quad(
-		VertexConsumer out,
-		PoseStack.Pose pose,
-		Vec3[] points,
-		Vec3[] normals,
-		int color,
-		int light,
-		float u0,
-		float u1,
-		float v0,
-		float v1,
-		boolean inverted
-	)
-	{
-		for (int k = 0; k < 4; k++)
+		// The maximum visualization length.
+		// This is 16 more than the max connection length to show an invalid connection when slightly exceeding that length
+		long maxLength = CablesConfig.connectionMaxLength() / 100 + 16;
+
+		if (end.distanceToSqr(startPos) <= maxLength * maxLength)
 		{
-			int i = inverted ? 3 - k : k;
+			float width = cableType.thickness();
 
-			Vec3 point = points[i];
-			Vec3 normal = normals[i];
+			BakedCableMesh mesh = new BakedCableMesh(new CableGeometry.Mesh(startPos, end, width / 2), null);
 
-			if (inverted)
-			{
-				out.vertex(pose.pose(), (float) point.x, (float) point.y, (float) point.z)
-					.color((color >> 16) & 255, (color >> 8) & 255, color & 255, 255)
-					.endVertex();
-			}
-			else
-			{
-				out.vertex(pose.pose(), (float) point.x, (float) point.y, (float) point.z)
-					.color((color >> 16) & 255, (color >> 8) & 255, color & 255, 255)
-					.uv(i == 0 || i == 3 ? u0 : u1, i < 2 ? v0 : v1)
-					.overlayCoords(OverlayTexture.NO_OVERLAY).uv2(light)
-					.normal(pose.normal(), (float) normal.x, (float) normal.y, (float) normal.z).endVertex();
-			}
+			VertexConsumer outline = buffers.getBuffer(CableHighlight.TYPE);
+
+			mesh.render(
+				outline,
+				poses.last(),
+				null,
+				isValid ? hasConnector ? GREEN : WHITE : RED,
+				false,
+				false
+			);
+
+			buffers.endBatch(CableHighlight.TYPE);
 		}
 	}
 

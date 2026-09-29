@@ -25,26 +25,23 @@ import java.util.function.Function;
  * Read the actual baked GT block model, including resource-pack sprites, tint indices and overlays.
  */
 @Mod.EventBusSubscriber(modid = GregTechCables.ID, value = Dist.CLIENT, bus = Mod.EventBusSubscriber.Bus.MOD)
-public final class CableAppearance
+public record CableAppearance(@NotNull TextureAtlasSprite sprite, int color)
 {
-	public record Appearance(@NotNull TextureAtlasSprite sprite, int color)
-	{
-	}
-
-	private static final Map<@NotNull ResourceLocation, @NotNull Appearance> CACHE = new ConcurrentHashMap<>();
+	private static final Map<@NotNull ResourceLocation, @NotNull CableAppearance> CACHE = new ConcurrentHashMap<>();
 
 	@SubscribeEvent
 	public static void rebaked(ModelEvent.BakingCompleted event)
 	{
 		CACHE.clear();
+		ClientCableNetwork.clearCableVisuals();
 	}
 
-	public static @NotNull Appearance get(@NotNull ResourceLocation cableType)
+	public static @NotNull CableAppearance get(@NotNull ResourceLocation cableType)
 	{
 		return CACHE.computeIfAbsent(cableType, CableAppearance::resolve);
 	}
 
-	private static @NotNull Appearance resolve(@NotNull ResourceLocation cableType)
+	private static @NotNull CableAppearance resolve(@NotNull ResourceLocation cableType)
 	{
 		Minecraft mc = Minecraft.getInstance();
 		Function<ResourceLocation, TextureAtlasSprite> atlas = mc.getTextureAtlas(InventoryMenu.BLOCK_ATLAS);
@@ -52,10 +49,10 @@ public final class CableAppearance
 		if (!(ForgeRegistries.ITEMS.getValue(cableType) instanceof BlockItem item)
 			|| !(item.getBlock() instanceof CableBlock cable))
 		{
-			return new Appearance(atlas.apply(MissingTextureAtlasSprite.getLocation()), 0xffffff);
+			return new CableAppearance(atlas.apply(MissingTextureAtlasSprite.getLocation()), 0xffffff);
 		}
 
-		return new Appearance(
+		return new CableAppearance(
 			atlas.apply(cable.pipeType.isCable
 				? GregTechCables.id("block/insulation")
 				: MaterialIconType.wire.getBlockTexturePath(cable.material.getMaterialIconSet(), "side", true)),

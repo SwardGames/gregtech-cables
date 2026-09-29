@@ -35,6 +35,12 @@ public class PlayerInteractEventHandlers
 		rightClickAny(e);
 	}
 
+	@SubscribeEvent
+	public static void rightClickEntitySpecific(PlayerInteractEvent.EntityInteractSpecific e)
+	{
+		rightClickAny(e);
+	}
+
 	private static void rightClickAny(PlayerInteractEvent e)
 	{
 		if (!e.getEntity().mayBuild())

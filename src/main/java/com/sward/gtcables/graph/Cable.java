@@ -1,7 +1,6 @@
 package com.sward.gtcables.graph;
 
 import com.sward.gtcables.CableType;
-import com.sward.gtcables.CablesConfig;
 import net.minecraft.FieldsAreNonnullByDefault;
 import net.minecraft.core.BlockPos;
 import net.minecraft.world.phys.AABB;
@@ -25,7 +24,7 @@ public final class Cable
 
 	public Cable(long id, @NotNull BlockPos a, @NotNull BlockPos b, @NotNull CableType cableType, int lengthCm, int color)
 	{
-		if (a == b || lengthCm < 1 || lengthCm > CablesConfig.connectionMaxLength())
+		if (a == b || lengthCm < 1)
 		{
 			throw new IllegalArgumentException("Invalid cable");
 		}
@@ -36,15 +35,15 @@ public final class Cable
 		this.cableType = cableType;
 		this.lengthCm = lengthCm;
 
-		int x0 = Math.min(a.getX(), b.getX());
-		int y0 = Math.min(a.getY(), b.getY());
-		int z0 = Math.min(a.getZ(), b.getZ());
+		double x0 = Math.min(a.getX(), b.getX()) + 0.5D;
+		double y0 = Math.min(a.getY(), b.getY()) + 0.5D;
+		double z0 = Math.min(a.getZ(), b.getZ()) + 0.5D;
 
-		int x1 = Math.max(a.getX(), b.getX()) + 1;
-		int y1 = Math.max(a.getY(), b.getY()) + 1;
-		int z1 = Math.max(a.getZ(), b.getZ()) + 1;
+		double x1 = Math.max(a.getX(), b.getX()) + 0.5D;
+		double y1 = Math.max(a.getY(), b.getY()) + 0.5D;
+		double z1 = Math.max(a.getZ(), b.getZ()) + 0.5D;
 
-		this.bounds = new AABB(x0, y0, z0, x1, y1, z1);
+		this.bounds = CableGeometry.bounds(x0, y0, z0, x1, y1, z1, 0.5D);
 
 		this.aId = a.asLong();
 		this.bId = b.asLong();

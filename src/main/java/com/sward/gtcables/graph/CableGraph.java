@@ -2,12 +2,14 @@ package com.sward.gtcables.graph;
 
 import com.sward.gtcables.CableType;
 import com.sward.gtcables.util.PlayerHelper;
+import it.unimi.dsi.fastutil.longs.Long2ObjectMap;
+import it.unimi.dsi.fastutil.longs.Long2ObjectOpenHashMap;
 import net.minecraft.MethodsReturnNonnullByDefault;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
 import net.minecraft.core.SectionPos;
+import net.minecraft.util.Mth;
 import net.minecraft.world.entity.player.Player;
-import net.minecraft.world.level.ChunkPos;
 import net.minecraft.world.phys.AABB;
 import net.minecraft.world.phys.Vec3;
 import org.jetbrains.annotations.NotNull;
@@ -34,25 +36,25 @@ public final class CableGraph
 	};
 
 	// All connectors in the graph
-	private final Map<Long, Direction> connectors = new HashMap<>();
+	private final Long2ObjectMap<Direction> connectors = new Long2ObjectOpenHashMap<>();
 
 	// All cables in the graph
-	private final Map<Long, Cable> cables = new HashMap<>();
+	private final Long2ObjectMap<Cable> cables = new Long2ObjectOpenHashMap<>();
 
 	// All cables connected to a given block position
-	private final Map<Long, List<Cable>> adjacency = new HashMap<>();
+	private final Long2ObjectMap<List<Cable>> adjacency = new Long2ObjectOpenHashMap<>();
 
 	// Maps chunks to cables whose bounds overlaps that chunk
-	private final Map<ChunkPos, Set<Cable>> chunkCables = new HashMap<>();
+	private final Long2ObjectMap<Set<Cable>> chunkCables = new Long2ObjectOpenHashMap<>();
 
 	// Maps cables to the list of chunks their bounds overlaps with
-	private final Map<Cable, List<ChunkPos>> cableChunks = new HashMap<>();
+	private final Long2ObjectMap<long[]> cableChunks = new Long2ObjectOpenHashMap<>();
 
 	public static int lengthCm(BlockPos a, BlockPos b)
 	{
-		int dx = b.getX() - a.getX();
-		int dy = b.getY() - a.getY();
-		int dz = b.getZ() - a.getZ();
+		long dx = b.getX() - a.getX();
+		long dy = b.getY() - a.getY();
+		long dz = b.getZ() - a.getZ();
 
 		double length = Math.sqrt(dx * dx + dy * dy + dz * dz) * 100;
 
@@ -180,31 +182,33 @@ public final class CableGraph
 		adjacency.computeIfAbsent(aId, k -> new ArrayList<>()).add(cable);
 		adjacency.computeIfAbsent(bId, k -> new ArrayList<>()).add(cable);
 
-		List<ChunkPos> chunks = new ArrayList<>();
+		int x0 = Math.min(a.getX(), b.getX());
+		int x1 = Math.max(a.getX(), b.getX());
+		int z0 = Math.min(a.getZ(), b.getZ());
+		int z1 = Math.max(a.getZ(), b.getZ());
 
-		int aChunkX = SectionPos.blockToSectionCoord(a.getX());
-		int bChunkX = SectionPos.blockToSectionCoord(b.getX());
-		int aChunkZ = SectionPos.blockToSectionCoord(a.getZ());
-		int bChunkZ = SectionPos.blockToSectionCoord(b.getZ());
+		int chunkX0 = SectionPos.blockToSectionCoord(x0 - 1);
+		int chunkX1 = SectionPos.blockToSectionCoord(x1 + 1);
+		int chunkZ0 = SectionPos.blockToSectionCoord(z0 - 1);
+		int chunkZ1 = SectionPos.blockToSectionCoord(z1 + 1);
 
-		int chunkX0 = Math.min(aChunkX, bChunkX);
-		int chunkX1 = Math.max(aChunkX, bChunkX);
-		int chunkZ0 = Math.min(aChunkZ, bChunkZ);
-		int chunkZ1 = Math.max(aChunkZ, bChunkZ);
+		long[] chunks = new long[(chunkX1 - chunkX0 + 1) * (chunkZ1 - chunkZ0 + 1)];
+
+		int i = 0;
 
 		for (int chunkX = chunkX0; chunkX <= chunkX1; ++chunkX)
 		{
 			for (int chunkZ = chunkZ0; chunkZ <= chunkZ1; ++chunkZ)
 			{
-				ChunkPos chunkPos = new ChunkPos(chunkX, chunkZ);
+				long chunkId = getChunkId(chunkX, chunkZ);
 
-				chunks.add(chunkPos);
+				chunks[i++] = chunkId;
 
-				chunkCables.computeIfAbsent(chunkPos, k -> new HashSet<>()).add(cable);
+				chunkCables.computeIfAbsent(chunkId, k -> new HashSet<>()).add(cable);
 			}
 		}
 
-		cableChunks.put(cable, chunks);
+		cableChunks.put(cable.id, chunks);
 
 		return cable;
 	}
@@ -229,15 +233,20 @@ public final class CableGraph
 			}
 		}
 
-		List<ChunkPos> chunks = cableChunks.remove(cable);
+		long[] chunkIds = cableChunks.remove(cable.id);
 
-		if (chunks != null)
+		if (chunkIds != null)
 		{
-			for (ChunkPos chunk : chunks)
+			for (long chunk : chunkIds)
 			{
 				Set<Cable> chunkWires = chunkCables.get(chunk);
 
 				chunkWires.remove(cable);
+
+				if (chunkWires.isEmpty())
+				{
+					chunkCables.remove(chunk);
+				}
 			}
 		}
 
@@ -255,16 +264,18 @@ public final class CableGraph
 
 	public void forEachOverlap(AABB bounds, Consumer<@NotNull Cable> cableConsumer)
 	{
-		int chunkX0 = SectionPos.posToSectionCoord(bounds.minX);
-		int chunkX1 = SectionPos.posToSectionCoord(bounds.maxX + 1);
-		int chunkZ0 = SectionPos.posToSectionCoord(bounds.minZ);
-		int chunkZ1 = SectionPos.posToSectionCoord(bounds.maxZ + 1);
+		int chunkX0 = SectionPos.posToSectionCoord(Mth.floor(bounds.minX));
+		int chunkX1 = SectionPos.posToSectionCoord(Mth.ceil(bounds.maxX));
+		int chunkZ0 = SectionPos.posToSectionCoord(Mth.floor(bounds.minZ));
+		int chunkZ1 = SectionPos.posToSectionCoord(Mth.ceil(bounds.maxZ));
+
+		Set<Cable> checkedCables = new HashSet<>();
 
 		for (int chunkX = chunkX0; chunkX <= chunkX1; ++chunkX)
 		{
 			for (int chunkZ = chunkZ0; chunkZ <= chunkZ1; ++chunkZ)
 			{
-				Set<Cable> cables = chunkCables.get(new ChunkPos(chunkX, chunkZ));
+				Set<Cable> cables = chunkCables.get(getChunkId(chunkX, chunkZ));
 
 				if (cables == null)
 				{
@@ -273,7 +284,7 @@ public final class CableGraph
 
 				for (Cable cable : cables)
 				{
-					if (cable.bounds.intersects(bounds))
+					if (checkedCables.add(cable) && cable.bounds.intersects(bounds))
 					{
 						cableConsumer.accept(cable);
 					}
@@ -320,5 +331,10 @@ public final class CableGraph
 	public @Nullable CableHitResult clip(Player player)
 	{
 		return clip(player.getEyePosition(), player.getLookAngle(), PlayerHelper.unobstructedReach(player));
+	}
+
+	private static long getChunkId(int chunkX, int chunkZ)
+	{
+		return ((long) chunkZ << 32) | Integer.toUnsignedLong(chunkX);
 	}
 }
