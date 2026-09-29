@@ -55,7 +55,7 @@ public final class ConnectorBlock extends BaseEntityBlock implements SimpleWater
 	}
 
 	@Override
-	public FluidState getFluidState(BlockState state)
+	public @NotNull FluidState getFluidState(BlockState state)
 	{
 		return state.getValue(WATERLOGGED)
 			? Fluids.WATER.getSource(false)
@@ -63,13 +63,13 @@ public final class ConnectorBlock extends BaseEntityBlock implements SimpleWater
 	}
 
 	@Override
-	public BlockState updateShape(
+	public @NotNull BlockState updateShape(
 		BlockState state,
-		Direction direction,
-		BlockState neighbourState,
-		LevelAccessor level,
-		BlockPos pos,
-		BlockPos neighbourPos
+		@NotNull Direction direction,
+		@NotNull BlockState neighbourState,
+		@NotNull LevelAccessor level,
+		@NotNull BlockPos pos,
+		@NotNull BlockPos neighbourPos
 	)
 	{
 		if (state.getValue(WATERLOGGED))
