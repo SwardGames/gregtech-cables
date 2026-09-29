@@ -41,19 +41,19 @@ public record SyncGraphPacket(ResourceLocation dimension, ConnectorData[] connec
 
 	public void encode(FriendlyByteBuf buf)
 	{
-		buf.writeResourceLocation(dimension);
+		buf.writeResourceLocation(this.dimension);
 
-		buf.writeVarInt(connectors.length);
+		buf.writeVarInt(this.connectors.length);
 
-		for (ConnectorData connector : connectors)
+		for (ConnectorData connector : this.connectors)
 		{
 			buf.writeVarLong(connector.id);
 			buf.writeEnum(connector.direction);
 		}
 
-		buf.writeVarInt(cables.length);
+		buf.writeVarInt(this.cables.length);
 
-		for (CableData cable : cables)
+		for (CableData cable : this.cables)
 		{
 			buf.writeVarLong(cable.id);
 			buf.writeBlockPos(cable.a);

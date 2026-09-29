@@ -56,32 +56,32 @@ public record CableType(
 
 	public long voltage()
 	{
-		return wireProperties.getVoltage();
+		return this.wireProperties.getVoltage();
 	}
 
 	public int amps()
 	{
-		return wireProperties.getAmperage();
+		return this.wireProperties.getAmperage();
 	}
 
 	public int lossPerMetre()
 	{
-		return wireProperties.getLossPerBlock();
+		return this.wireProperties.getLossPerBlock();
 	}
 
 	public int color()
 	{
-		return insulation.isCable ? 0x34343c : material.getMaterialRGB();
+		return this.insulation.isCable ? 0x34343c : this.material.getMaterialRGB();
 	}
 
 	public float thickness()
 	{
-		return insulation.thickness * 0.28F;
+		return this.insulation.thickness * 0.28F;
 	}
 
 	public boolean shockHazard()
 	{
-		return insulation.insulationLevel == -1 && !wireProperties.isSuperconductor() && wireProperties.getLossPerBlock() > 0;
+		return this.insulation.insulationLevel == -1 && !this.wireProperties.isSuperconductor() && this.wireProperties.getLossPerBlock() > 0;
 	}
 
 	private static @Nullable CableType createCableType(ResourceLocation id, @Nullable Item item)

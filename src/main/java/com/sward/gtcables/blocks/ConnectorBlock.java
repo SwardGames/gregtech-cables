@@ -32,7 +32,7 @@ public final class ConnectorBlock extends BaseEntityBlock implements SimpleWater
 		super(Properties.of().strength(1.5F, 6).noOcclusion());
 
 		registerDefaultState(
-			stateDefinition.any()
+			this.stateDefinition.any()
 				.setValue(FACING, Direction.UP)
 				.setValue(WATERLOGGED, false)
 		);

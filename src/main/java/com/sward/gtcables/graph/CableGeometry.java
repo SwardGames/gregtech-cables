@@ -38,12 +38,12 @@ public final class CableGeometry
 		{
 			int count = segments(a, b) + 1;
 
-			points = new Vec3[count];
-			tangents = new Vec3[count];
-			across = new Vec3[count];
-			up = new Vec3[count];
-			rings = new Vec3[count][4];
-			distances = new double[count];
+			this.points = new Vec3[count];
+			this.tangents = new Vec3[count];
+			this.across = new Vec3[count];
+			this.up = new Vec3[count];
+			this.rings = new Vec3[count][4];
+			this.distances = new double[count];
 
 			Vec3 delta = b.subtract(a);
 			double horizontal = Math.hypot(delta.x, delta.z);
@@ -55,11 +55,11 @@ public final class CableGeometry
 
 			for (int i = 0; i < count; i++)
 			{
-				points[i] = point(a, b, i / (double) (count - 1));
+				this.points[i] = point(a, b, i / (double) (count - 1));
 
 				if (i > 0)
 				{
-					distances[i] = distances[i - 1] + points[i].distanceTo(points[i - 1]);
+					this.distances[i] = this.distances[i - 1] + this.points[i].distanceTo(this.points[i - 1]);
 				}
 			}
 
@@ -67,68 +67,68 @@ public final class CableGeometry
 
 			for (int i = 0; i < count; i++)
 			{
-				Vec3 incoming = points[i].subtract(points[Math.max(0, i - 1)]).normalize();
-				Vec3 outgoing = points[Math.min(count - 1, i + 1)].subtract(points[i]).normalize();
+				Vec3 incoming = this.points[i].subtract(this.points[Math.max(0, i - 1)]).normalize();
+				Vec3 outgoing = this.points[Math.min(count - 1, i + 1)].subtract(this.points[i]).normalize();
 				Vec3 tangent = i == 0 ? outgoing : i == count - 1 ? incoming : incoming.add(outgoing).normalize();
 				Vec3 v = tangent.cross(u).normalize();
 
 				double miter = i == 0 || i == count - 1 ? 1 : 1 / Math.max(0.5D, tangent.dot(incoming));
 
-				tangents[i] = tangent;
-				across[i] = u;
-				up[i] = v;
+				this.tangents[i] = tangent;
+				this.across[i] = u;
+				this.up[i] = v;
 
 				Vec3 ru = u.scale(radius);
 				Vec3 rv = v.scale(radius * miter);
 
-				rings[i][0] = points[i].add(ru).add(rv);
-				rings[i][1] = points[i].subtract(ru).add(rv);
-				rings[i][2] = points[i].subtract(ru).subtract(rv);
-				rings[i][3] = points[i].add(ru).subtract(rv);
+				this.rings[i][0] = this.points[i].add(ru).add(rv);
+				this.rings[i][1] = this.points[i].subtract(ru).add(rv);
+				this.rings[i][2] = this.points[i].subtract(ru).subtract(rv);
+				this.rings[i][3] = this.points[i].add(ru).subtract(rv);
 
-				for (Vec3 corner : rings[i])
+				for (Vec3 corner : this.rings[i])
 				{
 					total = total.minmax(new AABB(corner, corner));
 				}
 			}
 
-			bounds = total.inflate(1e-9D);
+			this.bounds = total.inflate(1e-9D);
 			this.radius = radius;
 		}
 
 		public int size()
 		{
-			return points.length;
+			return this.points.length;
 		}
 
 		public Vec3 centre(int i)
 		{
-			return points[i];
+			return this.points[i];
 		}
 
 		public Vec3 corner(int ring, int corner)
 		{
-			return rings[ring][corner];
+			return this.rings[ring][corner];
 		}
 
 		public Vec3 tangent(int i)
 		{
-			return tangents[i];
+			return this.tangents[i];
 		}
 
 		public double distance(int i)
 		{
-			return distances[i];
+			return this.distances[i];
 		}
 
 		public Vec3 normal(int ring, int side)
 		{
 			return switch (side)
 			{
-				case 0 -> up[ring];
-				case 1 -> across[ring].scale(-1);
-				case 2 -> up[ring].scale(-1);
-				default -> across[ring];
+				case 0 -> this.up[ring];
+				case 1 -> this.across[ring].scale(-1);
+				case 2 -> this.up[ring].scale(-1);
+				default -> this.across[ring];
 			};
 		}
 	}
@@ -146,7 +146,7 @@ public final class CableGeometry
 			Mesh mesh = new Mesh(a, b, radius);
 			int count = mesh.size() - 1;
 
-			segments = new Segment[count];
+			this.segments = new Segment[count];
 
 			for (int i = 0; i < count; i++)
 			{
@@ -158,20 +158,20 @@ public final class CableGeometry
 					vertices[j + 4] = mesh.corner(i + 1, j);
 				}
 
-				segments[i] = new Segment(vertices);
+				this.segments[i] = new Segment(vertices);
 			}
 
-			bounds = mesh.bounds;
+			this.bounds = mesh.bounds;
 		}
 
 		public boolean touches(AABB body)
 		{
-			if (!bounds.intersects(body))
+			if (!this.bounds.intersects(body))
 			{
 				return false;
 			}
 
-			for (Segment segment : segments)
+			for (Segment segment : this.segments)
 			{
 				if (segment.touches(body))
 				{
@@ -201,7 +201,7 @@ public final class CableGeometry
 				box = box.minmax(new AABB(vertex, vertex));
 			}
 
-			bounds = box.inflate(1e-9D);
+			this.bounds = box.inflate(1e-9D);
 
 			List<Vec3> separating = new ArrayList<>(List.of(WORLD_AXES));
 
@@ -243,27 +243,27 @@ public final class CableGeometry
 				}
 			}
 
-			axes = unique.toArray(Vec3[]::new);
-			min = new double[axes.length];
-			max = new double[axes.length];
+			this.axes = unique.toArray(Vec3[]::new);
+			this.min = new double[this.axes.length];
+			this.max = new double[this.axes.length];
 
-			for (int i = 0; i < axes.length; i++)
+			for (int i = 0; i < this.axes.length; i++)
 			{
-				min[i] = Double.POSITIVE_INFINITY;
-				max[i] = Double.NEGATIVE_INFINITY;
+				this.min[i] = Double.POSITIVE_INFINITY;
+				this.max[i] = Double.NEGATIVE_INFINITY;
 
 				for (Vec3 vertex : verts)
 				{
-					double value = vertex.dot(axes[i]);
-					min[i] = Math.min(min[i], value);
-					max[i] = Math.max(max[i], value);
+					double value = vertex.dot(this.axes[i]);
+					this.min[i] = Math.min(this.min[i], value);
+					this.max[i] = Math.max(this.max[i], value);
 				}
 			}
 		}
 
 		boolean touches(AABB body)
 		{
-			if (!bounds.intersects(body))
+			if (!this.bounds.intersects(body))
 			{
 				return false;
 			}
@@ -271,13 +271,13 @@ public final class CableGeometry
 			Vec3 centre = body.getCenter();
 			Vec3 half = new Vec3(body.getXsize() / 2, body.getYsize() / 2, body.getZsize() / 2);
 
-			for (int i = 0; i < axes.length; i++)
+			for (int i = 0; i < this.axes.length; i++)
 			{
-				Vec3 axis = axes[i];
+				Vec3 axis = this.axes[i];
 				double value = centre.dot(axis);
 				double radius = half.x * Math.abs(axis.x) + half.y * Math.abs(axis.y) + half.z * Math.abs(axis.z);
 
-				if (value + radius < min[i] - 1e-9D || value - radius > max[i] + 1e-9D)
+				if (value + radius < this.min[i] - 1e-9D || value - radius > this.max[i] + 1e-9D)
 				{
 					return false;
 				}

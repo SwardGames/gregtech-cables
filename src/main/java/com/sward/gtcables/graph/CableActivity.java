@@ -11,7 +11,7 @@ public final class CableActivity
 
 	public CableActivity()
 	{
-		Arrays.fill(ticks, Long.MIN_VALUE);
+		Arrays.fill(this.ticks, Long.MIN_VALUE);
 	}
 
 	public void accept(long voltage, long tick)
@@ -21,53 +21,53 @@ public final class CableActivity
 			return;
 		}
 
-		if (tick < latest)
+		if (tick < this.latest)
 		{
-			Arrays.fill(ticks, Long.MIN_VALUE);
-			Arrays.fill(amps, 0);
+			Arrays.fill(this.ticks, Long.MIN_VALUE);
+			Arrays.fill(this.amps, 0);
 		}
 
-		if (tick != latest)
+		if (tick != this.latest)
 		{
-			latest = tick;
-			maxVoltage = 0;
+			this.latest = tick;
+			this.maxVoltage = 0;
 		}
 
-		maxVoltage = Math.max(maxVoltage, voltage);
+		this.maxVoltage = Math.max(this.maxVoltage, voltage);
 
 		int slot = Math.floorMod(tick, 20);
 
-		if (ticks[slot] != tick)
+		if (this.ticks[slot] != tick)
 		{
-			ticks[slot] = tick;
-			amps[slot] = 0;
+			this.ticks[slot] = tick;
+			this.amps[slot] = 0;
 		}
 
-		if (amps[slot] < Long.MAX_VALUE)
+		if (this.amps[slot] < Long.MAX_VALUE)
 		{
-			amps[slot]++;
+			this.amps[slot]++;
 		}
 	}
 
 	public long voltage(long tick)
 	{
-		return tick == latest ? maxVoltage : 0;
+		return tick == this.latest ? this.maxVoltage : 0;
 	}
 
 	public double averageAmperage(long tick)
 	{
 		double total = 0;
 
-		for (int i = 0; i < ticks.length; i++)
+		for (int i = 0; i < this.ticks.length; i++)
 		{
-			long age = tick - ticks[i];
+			long age = tick - this.ticks[i];
 
-			if (ticks[i] != Long.MIN_VALUE && age >= 0 && age < ticks.length)
+			if (this.ticks[i] != Long.MIN_VALUE && age >= 0 && age < this.ticks.length)
 			{
-				total += amps[i];
+				total += this.amps[i];
 			}
 		}
 
-		return total / ticks.length;
+		return total / this.ticks.length;
 	}
 }

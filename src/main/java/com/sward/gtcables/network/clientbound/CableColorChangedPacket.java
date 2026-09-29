@@ -7,9 +7,9 @@ public record CableColorChangedPacket(ResourceLocation dimension, long id, int c
 {
 	public void encode(FriendlyByteBuf buf)
 	{
-		buf.writeResourceLocation(dimension);
-		buf.writeVarLong(id);
-		buf.writeInt(color);
+		buf.writeResourceLocation(this.dimension);
+		buf.writeVarLong(this.id);
+		buf.writeInt(this.color);
 	}
 
 	public static CableColorChangedPacket decode(FriendlyByteBuf buf)

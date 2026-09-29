@@ -31,9 +31,9 @@ public final class ConnectorEntity extends BlockEntity implements IEnergyContain
 	{
 		super.onLoad();
 
-		if (level instanceof ServerLevel server)
+		if (this.level instanceof ServerLevel server)
 		{
-			CableNetwork.get(server).addConnector(worldPosition, attachedSide());
+			CableNetwork.get(server).addConnector(this.worldPosition, attachedSide());
 		}
 	}
 
@@ -42,7 +42,7 @@ public final class ConnectorEntity extends BlockEntity implements IEnergyContain
 	{
 		if (cap == GTCapability.CAPABILITY_ENERGY_CONTAINER && (side == null || side == attachedSide()))
 		{
-			return energy.cast();
+			return this.energy.cast();
 		}
 
 		return super.getCapability(cap, side);
@@ -52,21 +52,21 @@ public final class ConnectorEntity extends BlockEntity implements IEnergyContain
 	public void invalidateCaps()
 	{
 		super.invalidateCaps();
-		energy.invalidate();
+		this.energy.invalidate();
 	}
 
 	@Override
 	public void reviveCaps()
 	{
 		super.reviveCaps();
-		energy = LazyOptional.of(() -> this);
+		this.energy = LazyOptional.of(() -> this);
 	}
 
 	@Override
 	public long acceptEnergyFromNetwork(Direction side, long voltage, long amps)
 	{
-		return !isRemoved() && inputsEnergy(side) && level instanceof ServerLevel server
-			? CableNetwork.get(server).transfer(worldPosition, voltage, amps)
+		return !isRemoved() && inputsEnergy(side) && this.level instanceof ServerLevel server
+			? CableNetwork.get(server).transfer(this.worldPosition, voltage, amps)
 			: 0;
 	}
 

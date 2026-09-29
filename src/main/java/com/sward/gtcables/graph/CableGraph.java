@@ -63,17 +63,17 @@ public final class CableGraph
 
 	public Collection<Cable> cables()
 	{
-		return Collections.unmodifiableCollection(cables.values());
+		return Collections.unmodifiableCollection(this.cables.values());
 	}
 
 	public boolean hasConnector(long id)
 	{
-		return connectors.containsKey(id);
+		return this.connectors.containsKey(id);
 	}
 
 	public @Nullable Direction getConnector(long id)
 	{
-		return connectors.get(id);
+		return this.connectors.get(id);
 	}
 
 	/**
@@ -99,12 +99,12 @@ public final class CableGraph
 
 	public Map<Long, Direction> connectors()
 	{
-		return connectors;
+		return this.connectors;
 	}
 
 	public boolean hasCable(long id)
 	{
-		return cables.containsKey(id);
+		return this.cables.containsKey(id);
 	}
 
 	public boolean hasCable(BlockPos a, BlockPos b)
@@ -114,36 +114,36 @@ public final class CableGraph
 
 	public boolean hasCable(long aId, long bId)
 	{
-		return adjacency.getOrDefault(aId, List.of())
+		return this.adjacency.getOrDefault(aId, List.of())
 			.stream()
 			.anyMatch(e -> e.other(aId) == bId);
 	}
 
 	public @Nullable Cable getCable(long id)
 	{
-		return cables.get(id);
+		return this.cables.get(id);
 	}
 
 	public Collection<Cable> getAdjacentCables(long node)
 	{
-		return adjacency.getOrDefault(node, List.of());
+		return this.adjacency.getOrDefault(node, List.of());
 	}
 
 	public boolean addConnector(long id, Direction direction)
 	{
-		if (connectors.get(id) == direction)
+		if (this.connectors.get(id) == direction)
 		{
 			return false;
 		}
 
-		connectors.put(id, direction);
+		this.connectors.put(id, direction);
 
 		return true;
 	}
 
 	public boolean removeConnector(long id)
 	{
-		return connectors.remove(id) != null;
+		return this.connectors.remove(id) != null;
 	}
 
 	public @Nullable Cable addCable(
@@ -170,17 +170,17 @@ public final class CableGraph
 		}
 
 		// No connector
-		if (!connectors.containsKey(aId) || !connectors.containsKey(bId))
+		if (!this.connectors.containsKey(aId) || !this.connectors.containsKey(bId))
 		{
 			return null;
 		}
 
 		Cable cable = new Cable(id, a, b, cableType, cm, color);
 
-		cables.put(cable.id, cable);
+		this.cables.put(cable.id, cable);
 
-		adjacency.computeIfAbsent(aId, k -> new ArrayList<>()).add(cable);
-		adjacency.computeIfAbsent(bId, k -> new ArrayList<>()).add(cable);
+		this.adjacency.computeIfAbsent(aId, k -> new ArrayList<>()).add(cable);
+		this.adjacency.computeIfAbsent(bId, k -> new ArrayList<>()).add(cable);
 
 		int x0 = Math.min(a.getX(), b.getX());
 		int x1 = Math.max(a.getX(), b.getX());
@@ -204,18 +204,18 @@ public final class CableGraph
 
 				chunks[i++] = chunkId;
 
-				chunkCables.computeIfAbsent(chunkId, k -> new HashSet<>()).add(cable);
+				this.chunkCables.computeIfAbsent(chunkId, k -> new HashSet<>()).add(cable);
 			}
 		}
 
-		cableChunks.put(cable.id, chunks);
+		this.cableChunks.put(cable.id, chunks);
 
 		return cable;
 	}
 
 	public @Nullable Cable removeCable(long id)
 	{
-		Cable cable = cables.remove(id);
+		Cable cable = this.cables.remove(id);
 
 		if (cable == null)
 		{
@@ -224,28 +224,28 @@ public final class CableGraph
 
 		for (long node : new long[]{cable.aId, cable.bId})
 		{
-			List<Cable> list = adjacency.get(node);
+			List<Cable> list = this.adjacency.get(node);
 			list.remove(cable);
 
 			if (list.isEmpty())
 			{
-				adjacency.remove(node);
+				this.adjacency.remove(node);
 			}
 		}
 
-		long[] chunkIds = cableChunks.remove(cable.id);
+		long[] chunkIds = this.cableChunks.remove(cable.id);
 
 		if (chunkIds != null)
 		{
 			for (long chunk : chunkIds)
 			{
-				Set<Cable> chunkWires = chunkCables.get(chunk);
+				Set<Cable> chunkWires = this.chunkCables.get(chunk);
 
 				chunkWires.remove(cable);
 
 				if (chunkWires.isEmpty())
 				{
-					chunkCables.remove(chunk);
+					this.chunkCables.remove(chunk);
 				}
 			}
 		}
@@ -255,11 +255,11 @@ public final class CableGraph
 
 	public void clear()
 	{
-		connectors.clear();
-		cables.clear();
-		adjacency.clear();
-		chunkCables.clear();
-		cableChunks.clear();
+		this.connectors.clear();
+		this.cables.clear();
+		this.adjacency.clear();
+		this.chunkCables.clear();
+		this.cableChunks.clear();
 	}
 
 	public void forEachOverlap(AABB bounds, Consumer<@NotNull Cable> cableConsumer)
@@ -275,7 +275,7 @@ public final class CableGraph
 		{
 			for (int chunkZ = chunkZ0; chunkZ <= chunkZ1; ++chunkZ)
 			{
-				Set<Cable> cables = chunkCables.get(getChunkId(chunkX, chunkZ));
+				Set<Cable> cables = this.chunkCables.get(getChunkId(chunkX, chunkZ));
 
 				if (cables == null)
 				{

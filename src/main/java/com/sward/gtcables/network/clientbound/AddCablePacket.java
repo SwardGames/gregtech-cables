@@ -8,12 +8,12 @@ public record AddCablePacket(ResourceLocation dimension, long id, BlockPos a, Bl
 {
 	public void encode(FriendlyByteBuf buf)
 	{
-		buf.writeResourceLocation(dimension);
-		buf.writeVarLong(id);
-		buf.writeBlockPos(a);
-		buf.writeBlockPos(b);
-		buf.writeResourceLocation(wireType);
-		buf.writeInt(color);
+		buf.writeResourceLocation(this.dimension);
+		buf.writeVarLong(this.id);
+		buf.writeBlockPos(this.a);
+		buf.writeBlockPos(this.b);
+		buf.writeResourceLocation(this.wireType);
+		buf.writeInt(this.color);
 	}
 
 	public static AddCablePacket decode(FriendlyByteBuf buf)

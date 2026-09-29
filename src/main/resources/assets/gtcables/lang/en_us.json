@@ -1,10 +1,13 @@
 {
   "item.gtcables.spool.empty":"Empty Spool",
   "item.gtcables.spool.filled":"%s Spool",
+
   "block.gtcables.connector":"Wire Connector",
+
   "tooltip.gtcables.length":"%s / 256.00 m",
   "tooltip.gtcables.loss_per_block": "§cLoss/Centimeter/Ampere:§r §c%d§7 mEU-Volt",
   "tooltip.gtcables.selected":"Starting connector: %s (sneak-click to clear)",
+
   "message.gtcables.selection_cleared":"Starting connector cleared.",
   "message.gtcables.empty":"Fill this spool with GregTech wire or cable in your inventory first.",
   "message.gtcables.selected":"Starting connector selected. Use this spool on the second connector.",
@@ -18,8 +21,11 @@
   "message.gtcables.no_space":"Make enough room in empty or matching spools before cutting.",
   "message.gtcables.cut_first":"Recover attached cables with a wire cutter before breaking this connector.",
   "message.gtcables.recovered":"Cable recovered into spools.",
+
   "config.gtcables.spool_max_capacity": "Max Spool Capacity",
   "config.gtcables.connection_max_length": "Max Connection Length",
+  "config.gtcables.max_recursion_depth": "Max Recursion Depth",
+
   "config.jade.plugin_gtcables.wire_data":"Suspended wire data",
   "jade.gtcables.voltage": "Voltage: %s",
   "jade.gtcables.amperage": "Amperage: %s",

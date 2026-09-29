@@ -8,9 +8,9 @@ public record AddConnectorPacket(ResourceLocation dimension, long id, Direction 
 {
 	public void encode(FriendlyByteBuf buf)
 	{
-		buf.writeResourceLocation(dimension);
-		buf.writeVarLong(id);
-		buf.writeEnum(direction);
+		buf.writeResourceLocation(this.dimension);
+		buf.writeVarLong(this.id);
+		buf.writeEnum(this.direction);
 	}
 
 	public static AddConnectorPacket decode(FriendlyByteBuf buf)

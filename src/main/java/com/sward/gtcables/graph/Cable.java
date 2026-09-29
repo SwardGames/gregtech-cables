@@ -54,7 +54,7 @@ public final class Cable
 
 	public long other(long node)
 	{
-		return node == aId ? bId : aId;
+		return node == this.aId ? this.bId : this.aId;
 	}
 
 	@Override
@@ -78,25 +78,25 @@ public final class Cable
 	@Override
 	public int hashCode()
 	{
-		return Long.hashCode(id);
+		return Long.hashCode(this.id);
 	}
 
 	@Override
 	public String toString()
 	{
 		return "Cable[" +
-			"id=" + id + ", " +
-			"a=" + a + ", " +
-			"b=" + b + ", " +
-			"aId=" + aId + ", " +
-			"bId=" + bId + ", " +
-			"lengthCm=" + lengthCm + ", " +
-			"cableType=" + cableType + ", " +
-			"color=" + color + ']';
+			"id=" + this.id + ", " +
+			"a=" + this.a + ", " +
+			"b=" + this.b + ", " +
+			"aId=" + this.aId + ", " +
+			"bId=" + this.bId + ", " +
+			"lengthCm=" + this.lengthCm + ", " +
+			"cableType=" + this.cableType + ", " +
+			"color=" + this.color + ']';
 	}
 
 	public long id()
 	{
-		return id;
+		return this.id;
 	}
 }

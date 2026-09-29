@@ -7,8 +7,8 @@ public record RemoveConnectorPacket(ResourceLocation dimension, long id)
 {
 	public void encode(FriendlyByteBuf buf)
 	{
-		buf.writeResourceLocation(dimension);
-		buf.writeVarLong(id);
+		buf.writeResourceLocation(this.dimension);
+		buf.writeVarLong(this.id);
 	}
 
 	public static RemoveConnectorPacket decode(FriendlyByteBuf buf)

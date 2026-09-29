@@ -70,7 +70,6 @@ public final class CableNetwork extends SavedData
 	private final CableGraph graph = new CableGraph();
 	private final Long2LongMap used = new Long2LongOpenHashMap();
 	private final Long2ObjectMap<Heat> heat = new Long2ObjectOpenHashMap<>();
-	private final LongSet activeNodes = new LongOpenHashSet();
 
 	private final Long2ObjectMap<Exposure> exposures = new Long2ObjectOpenHashMap<>();
 	private final LongSet powered = new LongOpenHashSet();
@@ -79,6 +78,9 @@ public final class CableNetwork extends SavedData
 
 	private long heatRevision;
 	private long epoch = Long.MIN_VALUE;
+
+	private int recursionDepth = 0;
+	private final LongSet activeNodes = new LongOpenHashSet();
 
 	private CableNetwork(ServerLevel level)
 	{
@@ -96,48 +98,48 @@ public final class CableNetwork extends SavedData
 
 	public boolean hasCable(long id)
 	{
-		return graph.hasCable(id);
+		return this.graph.hasCable(id);
 	}
 
 	public @Nullable Cable getCable(long id)
 	{
-		return graph.getCable(id);
+		return this.graph.getCable(id);
 	}
 
 	public boolean hasConnector(long id)
 	{
-		return graph.hasConnector(id);
+		return this.graph.hasConnector(id);
 	}
 
 	public boolean hasConnector(BlockPos pos)
 	{
-		return graph.hasConnector(pos.asLong());
+		return this.graph.hasConnector(pos.asLong());
 	}
 
-	public @Nullable Direction getConnector(long id) { return graph.getConnector(id); }
+	public @Nullable Direction getConnector(long id) { return this.graph.getConnector(id); }
 
-	public @Nullable Direction getConnector(BlockPos pos) { return graph.getConnector(pos.asLong()); }
+	public @Nullable Direction getConnector(BlockPos pos) { return this.graph.getConnector(pos.asLong()); }
 
 	public boolean connect(BlockPos a, BlockPos b, CableType cableType, int cm)
 	{
-		if (level.hasChunkAt(a) && level.getBlockEntity(a) instanceof ConnectorEntity ca)
+		if (this.level.hasChunkAt(a) && this.level.getBlockEntity(a) instanceof ConnectorEntity ca)
 		{
 			addConnector(a, ca.attachedSide());
 		}
 
-		if (level.hasChunkAt(b) && level.getBlockEntity(b) instanceof ConnectorEntity cb)
+		if (this.level.hasChunkAt(b) && this.level.getBlockEntity(b) instanceof ConnectorEntity cb)
 		{
 			addConnector(b, cb.attachedSide());
 		}
 
-		Cable cable = graph.addCable(nextId, a, b, a.asLong(), b.asLong(), cableType, cm, UNPAINTED_COLOR);
+		Cable cable = this.graph.addCable(this.nextId, a, b, a.asLong(), b.asLong(), cableType, cm, UNPAINTED_COLOR);
 
 		if (cable == null)
 		{
 			return false;
 		}
 
-		nextId++;
+		this.nextId++;
 
 		cacheContact(cable);
 
@@ -154,17 +156,17 @@ public final class CableNetwork extends SavedData
 
 	private @Nullable Cable remove(long id, boolean burned)
 	{
-		Cable cable = graph.removeCable(id);
+		Cable cable = this.graph.removeCable(id);
 
 		if (cable == null)
 		{
 			return null;
 		}
 
-		used.remove(id);
-		heat.remove(id);
-		exposures.remove(id);
-		powered.remove(id);
+		this.used.remove(id);
+		this.heat.remove(id);
+		this.exposures.remove(id);
+		this.powered.remove(id);
 
 		setDirty();
 		broadcastCableRemoved(cable, burned);
@@ -176,12 +178,12 @@ public final class CableNetwork extends SavedData
 	{
 		if (cable.cableType.shockHazard())
 		{
-			exposures.put(
+			this.exposures.put(
 				cable.id,
 				new Exposure(
 					new CableGeometry.ContactShape(
-						graph.getConnectorPosition(cable.a),
-						graph.getConnectorPosition(cable.b),
+						this.graph.getConnectorPosition(cable.a),
+						this.graph.getConnectorPosition(cable.b),
 						cable.cableType.thickness() / 2
 					),
 					new CableActivity()
@@ -192,14 +194,14 @@ public final class CableNetwork extends SavedData
 
 	public @Nullable Heat getHeat(Cable cable)
 	{
-		return heat.get(cable.id);
+		return this.heat.get(cable.id);
 	}
 
 	public void restoreHeat(Cable cable, int temperature, long lastHeatedTick)
 	{
-		if (graph.hasCable(cable.id) && temperature > AMBIENT_TEMPERATURE)
+		if (this.graph.hasCable(cable.id) && temperature > AMBIENT_TEMPERATURE)
 		{
-			heat.put(cable.id, new Heat(Math.min(BURN_TEMPERATURE - 1, temperature), lastHeatedTick));
+			this.heat.put(cable.id, new Heat(Math.min(BURN_TEMPERATURE - 1, temperature), lastHeatedTick));
 		}
 	}
 
@@ -236,14 +238,14 @@ public final class CableNetwork extends SavedData
 
 	private void applyHeat(Cable cable, long amount, long tick)
 	{
-		if (amount <= 0 || graph.getCable(cable.id) != cable)
+		if (amount <= 0 || this.graph.getCable(cable.id) != cable)
 		{
 			return;
 		}
 
 		int temperature = temperature(cable, tick);
 
-		heatRevision++;
+		this.heatRevision++;
 
 		if (amount >= BURN_TEMPERATURE - temperature)
 		{
@@ -251,18 +253,18 @@ public final class CableNetwork extends SavedData
 		}
 		else
 		{
-			heat.put(cable.id, new Heat(temperature + (int) amount, tick));
+			this.heat.put(cable.id, new Heat(temperature + (int) amount, tick));
 		}
 	}
 
 	public void shockContacts()
 	{
-		if (poweredTick != level.getGameTime() || powered.isEmpty())
+		if (this.poweredTick != this.level.getGameTime() || this.powered.isEmpty())
 		{
 			return;
 		}
 
-		level.getAllEntities().forEach(this::shockEntity);
+		this.level.getAllEntities().forEach(this::shockEntity);
 	}
 
 	private void shockEntity(Entity entity)
@@ -275,40 +277,40 @@ public final class CableNetwork extends SavedData
 			return;
 		}
 
-		for (long id : powered)
+		for (long id : this.powered)
 		{
-			Exposure exposure = exposures.get(id);
+			Exposure exposure = this.exposures.get(id);
 
 			if (exposure == null)
 			{
 				continue;
 			}
 
-			long voltage = exposure.activity.voltage(level.getGameTime());
-			double amps = exposure.activity.averageAmperage(level.getGameTime());
+			long voltage = exposure.activity.voltage(this.level.getGameTime());
+			double amps = exposure.activity.averageAmperage(this.level.getGameTime());
 
 			if (voltage > 0 && amps > 0 && exposure.shape.touches(entity.getBoundingBox()))
 			{
 				float damage = (float) ((GTUtil.getTierByVoltage(voltage) + 1) * amps * 4);
-				entity.hurt(GTDamageTypes.ELECTRIC.source(level), damage);
+				entity.hurt(GTDamageTypes.ELECTRIC.source(this.level), damage);
 			}
 		}
 	}
 
 	public List<Cable> attached(BlockPos pos)
 	{
-		return graph.getAdjacentCables(pos.asLong()).stream().toList();
+		return this.graph.getAdjacentCables(pos.asLong()).stream().toList();
 	}
 
 	public void addConnector(BlockPos pos, Direction facing)
 	{
 		long id = pos.asLong();
 
-		if (graph.addConnector(id, facing))
+		if (this.graph.addConnector(id, facing))
 		{
 			CablePackets.CHANNEL.send(
-				PacketDistributor.DIMENSION.with(level::dimension),
-				new AddConnectorPacket(level.dimension().location(), id, facing)
+				PacketDistributor.DIMENSION.with(this.level::dimension),
+				new AddConnectorPacket(this.level.dimension().location(), id, facing)
 			);
 		}
 	}
@@ -320,7 +322,7 @@ public final class CableNetwork extends SavedData
 
 		long id = pos.asLong();
 
-		if (graph.removeConnector(id))
+		if (this.graph.removeConnector(id))
 		{
 			setDirty();
 		}
@@ -334,27 +336,32 @@ public final class CableNetwork extends SavedData
 			while (!wire.isEmpty() && remaining > 0)
 			{
 				int count = Math.min(remaining, wire.getMaxStackSize());
-				Block.popResource(level, pos, wire.copyWithCount(count));
+				Block.popResource(this.level, pos, wire.copyWithCount(count));
 				remaining -= count;
 			}
 		}
 
 		CablePackets.CHANNEL.send(
-			PacketDistributor.DIMENSION.with(level::dimension),
-			new RemoveConnectorPacket(level.dimension().location(), id)
+			PacketDistributor.DIMENSION.with(this.level::dimension),
+			new RemoveConnectorPacket(this.level.dimension().location(), id)
 		);
 	}
 
 	public long transfer(BlockPos source, long voltage, long amps)
 	{
-		long sourceId = source.asLong();
-
-		if (activeNodes.contains(sourceId) || voltage <= 0 || amps <= 0)
+		if (this.recursionDepth >= CablesConfig.maxRecursionDepth())
 		{
 			return 0;
 		}
 
-		Direction connectorSide = graph.getConnector(source.asLong());
+		long sourceId = source.asLong();
+
+		if (this.activeNodes.contains(sourceId) || voltage <= 0 || amps <= 0)
+		{
+			return 0;
+		}
+
+		Direction connectorSide = this.graph.getConnector(source.asLong());
 
 		if (connectorSide == null)
 		{
@@ -365,15 +372,16 @@ public final class CableNetwork extends SavedData
 
 		long revision = this.heatRevision;
 
-		long tick = level.getGameTime();
+		long tick = this.level.getGameTime();
 
-		if (epoch != tick)
+		if (this.epoch != tick)
 		{
-			used.clear();
-			epoch = tick;
+			this.used.clear();
+			this.epoch = tick;
 		}
 
-		activeNodes.add(sourceId);
+		this.activeNodes.add(sourceId);
+		++this.recursionDepth;
 
 		long accepted = 0;
 
@@ -382,15 +390,19 @@ public final class CableNetwork extends SavedData
 
 		Map<List<Long>, Long> routeFractions = new HashMap<>();
 
+		Long2ObjectMap<Cable> previous = new Long2ObjectOpenHashMap<>();
+		Long2LongMap distances = new Long2LongOpenHashMap();
+		PriorityQueue<Step> queue = new PriorityQueue<>(
+			Comparator.comparingLong(Step::loss).thenComparingLong(Step::node)
+		);
+
 		try
 		{
 			while (accepted < amps)
 			{
-				Long2ObjectMap<Cable> previous = new Long2ObjectOpenHashMap<>();
-				Long2LongMap distances = new Long2LongOpenHashMap();
-				PriorityQueue<Step> queue = new PriorityQueue<>(
-					Comparator.comparingLong(Step::loss).thenComparingLong(Step::node)
-				);
+				previous.clear();
+				distances.clear();
+				queue.clear();
 
 				distances.put(sourceId, 0L);
 				queue.add(new Step(sourceId, 0));
@@ -406,21 +418,21 @@ public final class CableNetwork extends SavedData
 						continue;
 					}
 
-					if (step.node != sourceId && !rejected.contains(step.node) && canAcceptEnergy(
-						sourcePosition,
-						step.node
-					))
+					if (step.node != sourceId &&
+						!rejected.contains(step.node) &&
+						canAcceptEnergy(sourcePosition, step.node)
+					)
 					{
 						target = step.node;
 
 						break;
 					}
 
-					for (Cable edge : graph.getAdjacentCables(step.node))
+					for (Cable edge : this.graph.getAdjacentCables(step.node))
 					{
 						long next = edge.other(step.node);
 
-						if (activeNodes.contains(next))
+						if (this.activeNodes.contains(next))
 						{
 							continue;
 						}
@@ -476,7 +488,7 @@ public final class CableNetwork extends SavedData
 						}
 
 						packetVoltage = Math.min(packetVoltage, wireVoltage);
-						burned |= !graph.hasCable(edge.id);
+						burned |= !this.graph.hasCable(edge.id);
 					}
 				}
 
@@ -487,19 +499,19 @@ public final class CableNetwork extends SavedData
 
 				// Reserve before foreign code. Block cycles, but allow disjoint networks to
 				// cascade through a normal GregTech cable network during the same energy push.
-				path.forEach(c -> used.merge(c.id, 1L, (a, b) -> a == Long.MAX_VALUE ? a : a + b));
+				path.forEach(c -> this.used.merge(c.id, 1L, (a, b) -> a == Long.MAX_VALUE ? a : a + b));
 
 				LongSet reservation = new LongOpenHashSet();
 
 				path.forEach(
 					c ->
 					{
-						if (activeNodes.add(c.aId))
+						if (this.activeNodes.add(c.aId))
 						{
 							reservation.add(c.aId);
 						}
 
-						if (activeNodes.add(c.bId))
+						if (this.activeNodes.add(c.bId))
 						{
 							reservation.add(c.bId);
 						}
@@ -512,19 +524,20 @@ public final class CableNetwork extends SavedData
 				{
 					IEnergyContainer container = getSinkEnergyContainer(sourcePosition, target);
 
+					//noinspection DataFlowIssue
 					delivered = container != null && container.acceptEnergyFromNetwork(
-						graph.getConnector(target).getOpposite(),
+						this.graph.getConnector(target).getOpposite(),
 						packetVoltage,
 						1
 					) == 1;
 				}
 				finally
 				{
-					activeNodes.removeAll(reservation);
+					this.activeNodes.removeAll(reservation);
 
 					if (!delivered)
 					{
-						path.forEach(c -> used.computeIfPresent(c.id, (k, v) -> v - 1));
+						path.forEach(c -> this.used.computeIfPresent(c.id, (k, v) -> v - 1));
 					}
 				}
 
@@ -542,27 +555,27 @@ public final class CableNetwork extends SavedData
 
 						travelledLoss += cable.spanLoss;
 
-						if (graph.getCable(cable.id) == cable)
+						if (this.graph.getCable(cable.id) == cable)
 						{
-							Exposure exposure = exposures.get(cable.id);
+							Exposure exposure = this.exposures.get(cable.id);
 
 							if (exposure != null)
 							{
-								if (poweredTick != tick)
+								if (this.poweredTick != tick)
 								{
-									powered.clear();
-									poweredTick = tick;
+									this.powered.clear();
+									this.poweredTick = tick;
 								}
 
 								exposure.activity.accept(voltage - roundedLoss(travelledLoss), tick);
-								powered.add(cable.id);
+								this.powered.add(cable.id);
 							}
 						}
 					}
 
 					for (Cable cable : path)
 					{
-						long excess = used.getOrDefault(cable.id, 0L) - cable.cableType.amps();
+						long excess = this.used.getOrDefault(cable.id, 0L) - cable.cableType.amps();
 
 						// GT adds 40 K per excess amp in the current tick. This adapter sends 1 A packets.
 						if (excess > 0)
@@ -573,13 +586,14 @@ public final class CableNetwork extends SavedData
 				}
 				else
 				{
-					rejected.add(target);
+					rejected.add((long)target);
 				}
 			}
 		}
 		finally
 		{
-			activeNodes.remove(sourceId);
+			--this.recursionDepth;
+			this.activeNodes.remove(sourceId);
 
 			if (revision != this.heatRevision)
 			{
@@ -592,7 +606,7 @@ public final class CableNetwork extends SavedData
 
 	private @Nullable IEnergyContainer getSinkEnergyContainer(BlockPos sourceMachine, long connectorId)
 	{
-		Direction side = graph.getConnector(connectorId);
+		Direction side = this.graph.getConnector(connectorId);
 
 		if (side == null)
 		{
@@ -602,23 +616,24 @@ public final class CableNetwork extends SavedData
 		BlockPos connector = BlockPos.of(connectorId);
 		BlockPos machine = connector.relative(side);
 
-		if (machine.equals(sourceMachine) || !level.hasChunkAt(connector) || !level.hasChunkAt(machine))
+		if (machine.equals(sourceMachine) || !this.level.hasChunkAt(connector) || !this.level.hasChunkAt(machine))
 		{
 			return null;
 		}
 
-		if (!(level.getBlockEntity(connector) instanceof ConnectorEntity actual) || actual.attachedSide() != side)
+		if (!(this.level.getBlockEntity(connector) instanceof ConnectorEntity actual) || actual.attachedSide() != side)
 		{
 			return null;
 		}
 
-		BlockEntity be = level.getBlockEntity(machine);
+		BlockEntity be = this.level.getBlockEntity(machine);
 
 		if (be == null || be instanceof ConnectorEntity)
 		{
 			return null;
 		}
 
+		//noinspection DataFlowIssue
 		return be.getCapability(GTCapability.CAPABILITY_ENERGY_CONTAINER, side.getOpposite()).orElse(null);
 	}
 
@@ -626,8 +641,10 @@ public final class CableNetwork extends SavedData
 	{
 		IEnergyContainer container = getSinkEnergyContainer(sourceMachine, connectorId);
 
-		return container != null && container.inputsEnergy(graph.getConnector(connectorId)
-			.getOpposite()) && container.getEnergyCanBeInserted() > 0;
+		//noinspection DataFlowIssue
+		return container != null &&
+			container.inputsEnergy(this.graph.getConnector(connectorId).getOpposite()) &&
+			container.getEnergyCanBeInserted() > 0;
 	}
 
 	private static long roundedLoss(long hundredths)
@@ -743,7 +760,7 @@ public final class CableNetwork extends SavedData
 		Player player = e.getEntity();
 		Level level = e.getLevel();
 
-		CableHitResult hit = graph.clip(player);
+		CableHitResult hit = this.graph.clip(player);
 
 		if (hit == null)
 		{
@@ -785,7 +802,7 @@ public final class CableNetwork extends SavedData
 		Player player = e.getEntity();
 		Level level = e.getLevel();
 
-		CableHitResult hit = graph.clip(player);
+		CableHitResult hit = this.graph.clip(player);
 
 		if (hit == null)
 		{
@@ -830,9 +847,9 @@ public final class CableNetwork extends SavedData
 	private void broadcastCableAdded(Cable cable)
 	{
 		CablePackets.CHANNEL.send(
-			PacketDistributor.DIMENSION.with(level::dimension),
+			PacketDistributor.DIMENSION.with(this.level::dimension),
 			new AddCablePacket(
-				level.dimension().location(),
+				this.level.dimension().location(),
 				cable.id,
 				cable.a,
 				cable.b,
@@ -845,8 +862,8 @@ public final class CableNetwork extends SavedData
 	private void broadcastCableRemoved(Cable cable, boolean burned)
 	{
 		CablePackets.CHANNEL.send(
-			PacketDistributor.DIMENSION.with(level::dimension),
-			new RemoveCablePacket(level.dimension().location(), cable.id, burned)
+			PacketDistributor.DIMENSION.with(this.level::dimension),
+			new RemoveCablePacket(this.level.dimension().location(), cable.id, burned)
 		);
 	}
 
@@ -854,7 +871,7 @@ public final class CableNetwork extends SavedData
 	{
 		CablePackets.CHANNEL.send(
 			PacketDistributor.PLAYER.with(() -> player),
-			SyncGraphPacket.create(level, graph.connectors(), graph.cables())
+			SyncGraphPacket.create(this.level, this.graph.connectors(), this.graph.cables())
 		);
 	}
 
@@ -864,7 +881,7 @@ public final class CableNetwork extends SavedData
 		ListTag ns = new ListTag();
 		ListTag cs = new ListTag();
 
-		graph.connectors().forEach(
+		this.graph.connectors().forEach(
 			(pos, side) ->
 			{
 				CompoundTag n = new CompoundTag();
@@ -876,7 +893,7 @@ public final class CableNetwork extends SavedData
 			}
 		);
 
-		graph.cables().forEach(
+		this.graph.cables().forEach(
 			cable ->
 			{
 				CompoundTag n = new CompoundTag();
@@ -904,7 +921,7 @@ public final class CableNetwork extends SavedData
 		);
 
 		tag.putInt("Version", 2);
-		tag.putLong("NextId", nextId);
+		tag.putLong("NextId", this.nextId);
 		tag.put("Nodes", ns);
 		tag.put("Links", cs);
 

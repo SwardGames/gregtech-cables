@@ -161,11 +161,11 @@ public class BakedCableMesh
 			BlockPos.MutableBlockPos pos = new BlockPos.MutableBlockPos(Integer.MIN_VALUE, Integer.MIN_VALUE, Integer.MIN_VALUE);
 			int light = 0;
 
-			for (int i = 0; i < vertexCount / 16; ++i)
+			for (int i = 0; i < this.vertexCount / 16; ++i)
 			{
-				int posX = ringPosData[i * 3 + 0];
-				int posY = ringPosData[i * 3 + 1];
-				int posZ = ringPosData[i * 3 + 2];
+				int posX = this.ringPosData[i * 3 + 0];
+				int posY = this.ringPosData[i * 3 + 1];
+				int posZ = this.ringPosData[i * 3 + 2];
 
 				if (pos.getX() != posX || pos.getY() != posY || pos.getZ() != posZ)
 				{
@@ -182,12 +182,14 @@ public class BakedCableMesh
 					{
 						int v = i * 16 + j * 4 + (inverted ? 3 - k : k);
 
-						out.vertex(pose.pose(), vertexData[v * 3 + 0], vertexData[v * 3 + 1], vertexData[v * 3 + 2])
+						out.vertex(pose.pose(), this.vertexData[v * 3 + 0],
+								this.vertexData[v * 3 + 1], this.vertexData[v * 3 + 2])
 							.color(r, g, b, a)
-							.uv(uvData[v * 2 + 0], uvData[v * 2 + 1])
+							.uv(this.uvData[v * 2 + 0], this.uvData[v * 2 + 1])
 							.overlayCoords(OverlayTexture.NO_OVERLAY)
 							.uv2(light)
-							.normal(pose.normal(), normalData[v * 3 + 0], normalData[v * 3 + 1], normalData[v * 3 + 2])
+							.normal(pose.normal(), this.normalData[v * 3 + 0],
+								this.normalData[v * 3 + 1], this.normalData[v * 3 + 2])
 							.endVertex();
 					}
 				}
@@ -195,15 +197,17 @@ public class BakedCableMesh
 		}
 		else
 		{
-			for (int i = 0; i < vertexCount / 4; ++i)
+			for (int i = 0; i < this.vertexCount / 4; ++i)
 			{
 				for (int j = 0; j < 4; ++j)
 				{
 					int v = i * 4 + (inverted ? 3 - j : j);
 
-					out.vertex(pose.pose(), vertexData[v * 3 + 0], vertexData[v * 3 + 1], vertexData[v * 3 + 2])
+					out.vertex(pose.pose(), this.vertexData[v * 3 + 0],
+							this.vertexData[v * 3 + 1], this.vertexData[v * 3 + 2])
 						.color(r, g, b, a)
-						.normal(pose.normal(), normalData[v * 3 + 0], normalData[v * 3 + 1], normalData[v * 3 + 2])
+						.normal(pose.normal(), this.normalData[v * 3 + 0],
+							this.normalData[v * 3 + 1], this.normalData[v * 3 + 2])
 						.endVertex();
 				}
 			}

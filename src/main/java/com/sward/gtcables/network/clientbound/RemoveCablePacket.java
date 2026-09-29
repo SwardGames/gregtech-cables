@@ -7,9 +7,9 @@ public record RemoveCablePacket(ResourceLocation dimension, long id, boolean bur
 {
 	public void encode(FriendlyByteBuf buf)
 	{
-		buf.writeResourceLocation(dimension);
-		buf.writeVarLong(id);
-		buf.writeBoolean(burned);
+		buf.writeResourceLocation(this.dimension);
+		buf.writeVarLong(this.id);
+		buf.writeBoolean(this.burned);
 	}
 
 	public static RemoveCablePacket decode(FriendlyByteBuf buf)
