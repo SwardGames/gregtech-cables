@@ -81,7 +81,7 @@ public final class CableNetwork extends SavedData
 		}
 	}
 
-	private record Previous(NodeKey from, Object edge)
+	private record Previous(NodeKey from, Object edge, @Nullable EnergyNet network)
 	{
 
 	}
@@ -425,9 +425,7 @@ public final class CableNetwork extends SavedData
 
 		Map<NodeKey, Previous> previous = new HashMap<>();
 		Object2LongMap<NodeKey> distances = new Object2LongOpenHashMap<>();
-		PriorityQueue<Step> queue = new PriorityQueue<>(
-			Comparator.comparingLong(Step::loss).thenComparing(Step::key)
-		);
+		PriorityQueue<Step> queue = new PriorityQueue<>(Comparator.comparingLong(Step::loss).thenComparing(Step::key));
 
 		try
 		{
@@ -520,7 +518,7 @@ public final class CableNetwork extends SavedData
 										}
 
 										distances.put(nextKey, totalLoss);
-										previous.put(nextKey, new Previous(key, path));
+										previous.put(nextKey, new Previous(key, path, net));
 										queue.add(new Step(nextKey, totalLoss, mode));
 									}
 								}
@@ -556,7 +554,7 @@ public final class CableNetwork extends SavedData
 						}
 
 						distances.put(nextKey, loss);
-						previous.put(nextKey, new Previous(key, edge));
+						previous.put(nextKey, new Previous(key, edge, null));
 						queue.add(new Step(nextKey, loss, 0));
 					}
 				}
@@ -566,12 +564,12 @@ public final class CableNetwork extends SavedData
 					break;
 				}
 
-				List<Object> path = new ArrayList<>();
+				List<Previous> path = new ArrayList<>();
 
 				for (NodeKey key = target.key; key.node != sourceConnectorId; )
 				{
 					Previous prev = previous.get(key);
-					path.add(prev.edge);
+					path.add(prev);
 					key = prev.from;
 				}
 
@@ -589,8 +587,10 @@ public final class CableNetwork extends SavedData
 
 					boolean burned = false;
 
-					for (Object edge : path)
+					for (Previous segment : path)
 					{
+						Object edge = segment.edge;
+
 						if (edge instanceof Cable cableEdge)
 						{
 							long wireVoltage = cableEdge.cableType.voltage();
@@ -641,8 +641,10 @@ public final class CableNetwork extends SavedData
 					// Reserve before foreign code. Block cycles, but allow disjoint networks to
 					// cascade through a normal GregTech cable network during the same energy push.
 					path.forEach(
-						e ->
+						segment ->
 						{
+							Object e = segment.edge;
+
 							if (e instanceof Cable c)
 							{
 								this.used.merge(c.id, 1L, (a, b) -> a == Long.MAX_VALUE ? a : a + b);
@@ -653,8 +655,10 @@ public final class CableNetwork extends SavedData
 					LongSet reservation = new LongOpenHashSet();
 
 					path.forEach(
-						e ->
+						segment ->
 						{
+							Object e = segment.edge;
+
 							if (e instanceof Cable c)
 							{
 								if (this.activeNodes.add(c.aId))
@@ -693,8 +697,10 @@ public final class CableNetwork extends SavedData
 						if (!delivered)
 						{
 							path.forEach(
-								e ->
+								segment ->
 								{
+									Object e = segment.edge;
+
 									if (e instanceof Cable c)
 									{
 										this.used.computeIfPresent(c.id, (k, v) -> v - 1);
@@ -714,7 +720,8 @@ public final class CableNetwork extends SavedData
 						// Paths are stored sink-to-source; electrical exposure follows the actual current direction.
 						for (int i = path.size() - 1; i >= 0; i--)
 						{
-							Object edge = path.get(i);
+							Previous segment = path.get(i);
+							Object edge = segment.edge;
 
 							if (edge instanceof Cable cable && this.graph.getCable(cable.id) == edge)
 							{
@@ -746,6 +753,8 @@ public final class CableNetwork extends SavedData
 							}
 							else if (edge instanceof EnergyRoutePath routePath)
 							{
+								Objects.requireNonNull(segment.network).addEnergyFluxPerSec(voltage - roundedLoss(travelledLoss));
+
 								for (CableBlockEntity c : routePath.getPath())
 								{
 									travelledLoss += (long) c.getNodeData().getLossPerBlock() * 100;
