@@ -3,18 +3,22 @@ package com.sward.gtcables.graph;
 import com.gregtechceu.gtceu.api.capability.IEnergyContainer;
 import com.gregtechceu.gtceu.api.capability.forge.GTCapability;
 import com.gregtechceu.gtceu.api.item.tool.ToolHelper;
+import com.gregtechceu.gtceu.common.blockentity.CableBlockEntity;
 import com.gregtechceu.gtceu.common.data.GTDamageTypes;
 import com.gregtechceu.gtceu.common.data.GTItems;
 import com.gregtechceu.gtceu.common.item.ColorSprayBehaviour;
+import com.gregtechceu.gtceu.common.pipelike.cable.EnergyNet;
+import com.gregtechceu.gtceu.common.pipelike.cable.EnergyNetHandler;
+import com.gregtechceu.gtceu.common.pipelike.cable.EnergyRoutePath;
 import com.gregtechceu.gtceu.utils.GTUtil;
 import com.sward.gtcables.*;
 import com.sward.gtcables.blocks.ConnectorEntity;
 import com.sward.gtcables.items.SpoolItem;
 import com.sward.gtcables.network.CablePackets;
 import com.sward.gtcables.network.clientbound.*;
-import it.unimi.dsi.fastutil.ints.Int2ObjectMap;
-import it.unimi.dsi.fastutil.ints.Int2ObjectOpenHashMap;
+import it.unimi.dsi.fastutil.ints.*;
 import it.unimi.dsi.fastutil.longs.*;
+import it.unimi.dsi.fastutil.objects.*;
 import net.minecraft.FieldsAreNonnullByDefault;
 import net.minecraft.MethodsReturnNonnullByDefault;
 import net.minecraft.core.*;
@@ -55,12 +59,31 @@ public final class CableNetwork extends SavedData
 	{
 	}
 
-	private record Step(long node, long loss)
+	private record Exposure(CableGeometry.ContactShape shape, CableActivity activity)
 	{
 	}
 
-	private record Exposure(CableGeometry.ContactShape shape, CableActivity activity)
+	private record Step(NodeKey key, long loss, int mode)
 	{
+	}
+
+	private record NodeKey(long node, Direction side) implements Comparable<NodeKey>
+	{
+		@Override
+		public int compareTo(NodeKey that)
+		{
+			if (this.node == that.node)
+			{
+				return this.side.compareTo(that.side);
+			}
+
+			return Long.compare(this.node, that.node);
+		}
+	}
+
+	private record Previous(NodeKey from, Object edge)
+	{
+
 	}
 
 	public static final int AMBIENT_TEMPERATURE = 293;
@@ -79,7 +102,7 @@ public final class CableNetwork extends SavedData
 	private long heatRevision;
 	private long epoch = Long.MIN_VALUE;
 
-	private int recursionDepth = 0;
+	private boolean isTransferringPower = false;
 	private final LongSet activeNodes = new LongOpenHashSet();
 
 	private CableNetwork(ServerLevel level)
@@ -116,9 +139,15 @@ public final class CableNetwork extends SavedData
 		return this.graph.hasConnector(pos.asLong());
 	}
 
-	public @Nullable Direction getConnector(long id) { return this.graph.getConnector(id); }
+	public @Nullable Direction getConnector(long id)
+	{
+		return this.graph.getConnector(id);
+	}
 
-	public @Nullable Direction getConnector(BlockPos pos) { return this.graph.getConnector(pos.asLong()); }
+	public @Nullable Direction getConnector(BlockPos pos)
+	{
+		return this.graph.getConnector(pos.asLong());
+	}
 
 	public boolean connect(BlockPos a, BlockPos b, CableType cableType, int cm)
 	{
@@ -347,28 +376,35 @@ public final class CableNetwork extends SavedData
 		);
 	}
 
-	public long transfer(BlockPos source, long voltage, long amps)
+	public long transfer(BlockPos connector, long voltage, long amps)
 	{
-		if (this.recursionDepth >= CablesConfig.maxRecursionDepth())
+		if (this.isTransferringPower)
 		{
 			return 0;
 		}
 
-		long sourceId = source.asLong();
-
-		if (this.activeNodes.contains(sourceId) || voltage <= 0 || amps <= 0)
+		if (voltage <= 0 || amps <= 0)
 		{
 			return 0;
 		}
 
-		Direction connectorSide = this.graph.getConnector(source.asLong());
+		long sourceConnectorId = connector.asLong();
 
-		if (connectorSide == null)
+		if (this.activeNodes.contains(sourceConnectorId))
 		{
 			return 0;
 		}
 
-		BlockPos sourcePosition = source.relative(connectorSide);
+		Direction sourceSide = this.graph.getConnector(sourceConnectorId);
+
+		if (sourceSide == null)
+		{
+			return 0;
+		}
+
+		long remainingAmps = amps;
+
+		BlockPos source = connector.relative(sourceSide);
 
 		long revision = this.heatRevision;
 
@@ -380,75 +416,148 @@ public final class CableNetwork extends SavedData
 			this.epoch = tick;
 		}
 
-		this.activeNodes.add(sourceId);
-		++this.recursionDepth;
+		this.activeNodes.add(sourceConnectorId);
+		this.isTransferringPower = true;
 
-		long accepted = 0;
-
-		LongSet rejected = new LongOpenHashSet();
+		Set<NodeKey> rejected = new HashSet<>();
 		LongSet voltageHeated = new LongOpenHashSet();
+		LongSet voltageHeatedBlocks = new LongOpenHashSet();
 
-		Map<List<Long>, Long> routeFractions = new HashMap<>();
-
-		Long2ObjectMap<Cable> previous = new Long2ObjectOpenHashMap<>();
-		Long2LongMap distances = new Long2LongOpenHashMap();
+		Map<NodeKey, Previous> previous = new HashMap<>();
+		Object2LongMap<NodeKey> distances = new Object2LongOpenHashMap<>();
 		PriorityQueue<Step> queue = new PriorityQueue<>(
-			Comparator.comparingLong(Step::loss).thenComparingLong(Step::node)
+			Comparator.comparingLong(Step::loss).thenComparing(Step::key)
 		);
 
 		try
 		{
-			while (accepted < amps)
+			while (remainingAmps > 0)
 			{
 				previous.clear();
 				distances.clear();
 				queue.clear();
 
-				distances.put(sourceId, 0L);
-				queue.add(new Step(sourceId, 0));
+				NodeKey sourceKey = new NodeKey(sourceConnectorId, sourceSide);
+				distances.put(sourceKey, 0L);
+				queue.add(new Step(sourceKey, 0, 1));
 
-				Long target = null;
+				Step target = null;
 
 				while (!queue.isEmpty())
 				{
 					Step step = queue.remove();
 
-					if (step.loss != distances.get(step.node))
+					NodeKey key = step.key;
+					long node = key.node;
+					Direction side = key.side;
+					long stepLoss = step.loss;
+
+					if (stepLoss != distances.getLong(key))
 					{
 						continue;
 					}
 
-					if (step.node != sourceId &&
-						!rejected.contains(step.node) &&
-						canAcceptEnergy(sourcePosition, step.node)
-					)
+					if (step.mode == 0 && !rejected.contains(key))
 					{
-						target = step.node;
+						BlockPos machine = BlockPos.of(node).relative(side);
 
-						break;
+						if (!machine.equals(source))
+						{
+							IEnergyContainer container = getEnergyContainer(machine, side.getOpposite());
+
+							if (container != null)
+							{
+								// If the container is a cable, treat it as an extension of the network.
+								if (container instanceof EnergyNetHandler energyNetHandler)
+								{
+									EnergyNet net = energyNetHandler.getNet();
+
+									for (EnergyRoutePath path : net.getNetData(machine))
+									{
+										BlockPos nextPos = path.getTargetPipePos();
+										Direction nextFacing = path.getTargetFacing();
+
+										BlockPos targetMachine = nextPos.relative(nextFacing);
+										long targetMachineId = targetMachine.asLong();
+
+										Direction targetConnector = this.graph.getConnector(targetMachineId);
+
+										int mode = 0;
+
+										if (targetConnector != null)
+										{
+											if (targetConnector != nextFacing.getOpposite())
+											{
+												continue;
+											}
+
+											nextPos = targetMachine;
+											nextFacing = targetConnector;
+											mode = 1;
+										}
+
+										long next = nextPos.asLong();
+
+										if (this.activeNodes.contains(next))
+										{
+											continue;
+										}
+
+										NodeKey nextKey = new NodeKey(next, nextFacing);
+
+										long loss = path.getMaxLoss() * 100;
+
+										long totalLoss = stepLoss > Long.MAX_VALUE - loss
+											? Long.MAX_VALUE
+											: stepLoss + loss;
+
+										if (roundedLoss(totalLoss) >= voltage || totalLoss >= distances.getOrDefault(
+											nextKey,
+											Long.MAX_VALUE
+										))
+										{
+											continue;
+										}
+
+										distances.put(nextKey, totalLoss);
+										previous.put(nextKey, new Previous(key, path));
+										queue.add(new Step(nextKey, totalLoss, mode));
+									}
+								}
+								else if (container.inputsEnergy(side.getOpposite()) &&
+									container.getEnergyCanBeInserted() > 0)
+								{
+									target = step;
+
+									break;
+								}
+							}
+						}
 					}
 
-					for (Cable edge : this.graph.getAdjacentCables(step.node))
+					for (Cable edge : this.graph.getAdjacentCables(node))
 					{
-						long next = edge.other(step.node);
+						long next = edge.other(node);
 
 						if (this.activeNodes.contains(next))
 						{
 							continue;
 						}
 
-						long loss = step.loss > Long.MAX_VALUE - edge.spanLoss
+						long loss = stepLoss > Long.MAX_VALUE - edge.spanLoss
 							? Long.MAX_VALUE
-							: step.loss + edge.spanLoss;
+							: stepLoss + edge.spanLoss;
 
-						if (roundedLoss(loss) >= voltage || loss >= distances.getOrDefault(next, Long.MAX_VALUE))
+						NodeKey nextKey = new NodeKey(next, Objects.requireNonNull(this.graph.getConnector(next)));
+
+						if (roundedLoss(loss) >= voltage || loss >= distances.getOrDefault(nextKey, Long.MAX_VALUE))
 						{
 							continue;
 						}
 
-						distances.put(next, loss);
-						previous.put(next, edge);
-						queue.add(new Step(next, loss));
+						distances.put(nextKey, loss);
+						previous.put(nextKey, new Previous(key, edge));
+						queue.add(new Step(nextKey, loss, 0));
 					}
 				}
 
@@ -457,143 +566,221 @@ public final class CableNetwork extends SavedData
 					break;
 				}
 
-				List<Cable> path = new ArrayList<>();
+				List<Object> path = new ArrayList<>();
 
-				for (long n = target; n != sourceId; )
+				for (NodeKey key = target.key; key.node != sourceConnectorId; )
 				{
-					Cable edge = previous.get(n);
-					path.add(edge);
-					n = edge.other(n);
+					Previous prev = previous.get(key);
+					path.add(prev.edge);
+					key = prev.from;
 				}
 
-				List<Long> key = path.stream().map(Cable::id).toList();
+				long loss = distances.getLong(target.key);
+				long fraction = 0L;
 
-				long loss = distances.get((long)target);
-				long fraction = routeFractions.getOrDefault(key, 0L);
-				long packetLoss = loss / 100 + roundedLoss(fraction + loss % 100) - roundedLoss(fraction);
-				long packetVoltage = voltage - packetLoss;
+				boolean delivered;
 
-				boolean burned = false;
-
-				for (Cable edge : path)
+				do
 				{
-					long wireVoltage = edge.cableType.voltage();
+					delivered = false;
 
-					if (voltage > wireVoltage)
+					long packetLoss = loss / 100 + roundedLoss(fraction + loss % 100) - roundedLoss(fraction);
+					long packetVoltage = voltage - packetLoss;
+
+					boolean burned = false;
+
+					for (Object edge : path)
 					{
-						// Overvoltage heats once per cable per offer, even if the sink then rejects it.
-						if (voltageHeated.add(edge.id))
+						if (edge instanceof Cable cableEdge)
 						{
-							applyHeat(edge, voltageHeat(voltage, wireVoltage), tick);
-						}
+							long wireVoltage = cableEdge.cableType.voltage();
 
-						packetVoltage = Math.min(packetVoltage, wireVoltage);
-						burned |= !this.graph.hasCable(edge.id);
-					}
-				}
-
-				if (burned)
-				{
-					continue; // Re-route only after removing the destroyed span(s).
-				}
-
-				// Reserve before foreign code. Block cycles, but allow disjoint networks to
-				// cascade through a normal GregTech cable network during the same energy push.
-				path.forEach(c -> this.used.merge(c.id, 1L, (a, b) -> a == Long.MAX_VALUE ? a : a + b));
-
-				LongSet reservation = new LongOpenHashSet();
-
-				path.forEach(
-					c ->
-					{
-						if (this.activeNodes.add(c.aId))
-						{
-							reservation.add(c.aId);
-						}
-
-						if (this.activeNodes.add(c.bId))
-						{
-							reservation.add(c.bId);
-						}
-					}
-				);
-
-				boolean delivered = false;
-
-				try
-				{
-					IEnergyContainer container = getSinkEnergyContainer(sourcePosition, target);
-
-					//noinspection DataFlowIssue
-					delivered = container != null && container.acceptEnergyFromNetwork(
-						this.graph.getConnector(target).getOpposite(),
-						packetVoltage,
-						1
-					) == 1;
-				}
-				finally
-				{
-					this.activeNodes.removeAll(reservation);
-
-					if (!delivered)
-					{
-						path.forEach(c -> this.used.computeIfPresent(c.id, (k, v) -> v - 1));
-					}
-				}
-
-				if (delivered)
-				{
-					routeFractions.put(key, (fraction + loss % 100) % 100);
-					accepted++;
-
-					long travelledLoss = 0;
-
-					// Paths are stored sink-to-source; electrical exposure follows the actual current direction.
-					for (int i = path.size() - 1; i >= 0; i--)
-					{
-						Cable cable = path.get(i);
-
-						travelledLoss += cable.spanLoss;
-
-						if (this.graph.getCable(cable.id) == cable)
-						{
-							Exposure exposure = this.exposures.get(cable.id);
-
-							if (exposure != null)
+							if (voltage > wireVoltage)
 							{
-								if (this.poweredTick != tick)
+								packetVoltage = Math.min(packetVoltage, wireVoltage);
+
+								// Overvoltage heats once per cable per offer, even if the sink then rejects it.
+								if (voltageHeated.add(cableEdge.id))
 								{
-									this.powered.clear();
-									this.poweredTick = tick;
+									applyHeat(cableEdge, voltageHeat(voltage, wireVoltage), tick);
 								}
 
-								exposure.activity.accept(voltage - roundedLoss(travelledLoss), tick);
-								this.powered.add(cable.id);
+								burned |= !this.graph.hasCable(cableEdge.id);
 							}
 						}
-					}
-
-					for (Cable cable : path)
-					{
-						long excess = this.used.getOrDefault(cable.id, 0L) - cable.cableType.amps();
-
-						// GT adds 40 K per excess amp in the current tick. This adapter sends 1 A packets.
-						if (excess > 0)
+						else if (edge instanceof EnergyRoutePath routeEdge)
 						{
-							applyHeat(cable, Math.min(excess, BURN_TEMPERATURE) * 40, tick);
+							for (CableBlockEntity c : routeEdge.getPath())
+							{
+								long wireVoltage = c.getMaxVoltage();
+
+								if (voltage > wireVoltage)
+								{
+									packetVoltage = Math.min(packetVoltage, wireVoltage);
+
+									if (voltageHeatedBlocks.add(c.getBlockPos().asLong()))
+									{
+										c.applyHeat(voltageHeat(voltage, wireVoltage));
+									}
+
+									burned |= c.isInValid();
+								}
+							}
+						}
+						else
+						{
+							throw new IllegalStateException("Unexpected route edge: " + edge);
 						}
 					}
+
+					if (burned)
+					{
+						break;
+					}
+
+					// Reserve before foreign code. Block cycles, but allow disjoint networks to
+					// cascade through a normal GregTech cable network during the same energy push.
+					path.forEach(
+						e ->
+						{
+							if (e instanceof Cable c)
+							{
+								this.used.merge(c.id, 1L, (a, b) -> a == Long.MAX_VALUE ? a : a + b);
+							}
+						}
+					);
+
+					LongSet reservation = new LongOpenHashSet();
+
+					path.forEach(
+						e ->
+						{
+							if (e instanceof Cable c)
+							{
+								if (this.activeNodes.add(c.aId))
+								{
+									reservation.add(c.aId);
+								}
+
+								if (this.activeNodes.add(c.bId))
+								{
+									reservation.add(c.bId);
+								}
+							}
+						}
+					);
+
+					try
+					{
+						Direction side = target.key.side;
+						BlockPos pos = BlockPos.of(target.key.node).relative(side);
+
+						IEnergyContainer container = getEnergyContainer(pos, side.getOpposite());
+
+						if (container != null)
+						{
+							delivered = container.acceptEnergyFromNetwork(
+								side.getOpposite(),
+								packetVoltage,
+								1
+							) == 1;
+						}
+					}
+					finally
+					{
+						this.activeNodes.removeAll(reservation);
+
+						if (!delivered)
+						{
+							path.forEach(
+								e ->
+								{
+									if (e instanceof Cable c)
+									{
+										this.used.computeIfPresent(c.id, (k, v) -> v - 1);
+									}
+								}
+							);
+						}
+					}
+
+					if (delivered)
+					{
+						fraction = (fraction + loss % 100) % 100;
+						remainingAmps -= 1;
+
+						long travelledLoss = 0;
+
+						// Paths are stored sink-to-source; electrical exposure follows the actual current direction.
+						for (int i = path.size() - 1; i >= 0; i--)
+						{
+							Object edge = path.get(i);
+
+							if (edge instanceof Cable cable && this.graph.getCable(cable.id) == edge)
+							{
+								Exposure exposure = this.exposures.get(cable.id);
+
+								travelledLoss += cable.spanLoss;
+
+								if (exposure != null)
+								{
+									if (this.poweredTick != tick)
+									{
+										this.powered.clear();
+										this.poweredTick = tick;
+									}
+
+									exposure.activity.accept(voltage - roundedLoss(travelledLoss), tick);
+									this.powered.add(cable.id);
+								}
+
+								long excess = this.used.getOrDefault(cable.id, 0L) - cable.cableType.amps();
+
+								// GT adds 40 K per excess amp in the current tick. This adapter sends 1 A packets.
+								if (excess > 0)
+								{
+									applyHeat(cable, Math.min(excess, BURN_TEMPERATURE) * 40, tick);
+
+									burned |= !this.graph.hasCable(cable.id);
+								}
+							}
+							else if (edge instanceof EnergyRoutePath routePath)
+							{
+								for (CableBlockEntity c : routePath.getPath())
+								{
+									travelledLoss += (long) c.getNodeData().getLossPerBlock() * 100;
+
+									if (!c.isInValid())
+									{
+										c.incrementAmperage(1, voltage - roundedLoss(travelledLoss));
+
+										burned |= c.isInValid();
+									}
+								}
+							}
+							else
+							{
+								throw new IllegalStateException("Unexpected route edge: " + edge);
+							}
+						}
+
+						if (burned)
+						{
+							break;
+						}
+					}
+					else
+					{
+						rejected.add(target.key);
+					}
 				}
-				else
-				{
-					rejected.add((long)target);
-				}
+				while (delivered && remainingAmps > 0);
 			}
 		}
 		finally
 		{
-			--this.recursionDepth;
-			this.activeNodes.remove(sourceId);
+			this.isTransferringPower = false;
+			this.activeNodes.remove(sourceConnectorId);
 
 			if (revision != this.heatRevision)
 			{
@@ -601,27 +788,12 @@ public final class CableNetwork extends SavedData
 			}
 		}
 
-		return accepted;
+		return amps - remainingAmps;
 	}
 
-	private @Nullable IEnergyContainer getSinkEnergyContainer(BlockPos sourceMachine, long connectorId)
+	private @Nullable IEnergyContainer getEnergyContainer(BlockPos machine, Direction side)
 	{
-		Direction side = this.graph.getConnector(connectorId);
-
-		if (side == null)
-		{
-			return null;
-		}
-
-		BlockPos connector = BlockPos.of(connectorId);
-		BlockPos machine = connector.relative(side);
-
-		if (machine.equals(sourceMachine) || !this.level.hasChunkAt(connector) || !this.level.hasChunkAt(machine))
-		{
-			return null;
-		}
-
-		if (!(this.level.getBlockEntity(connector) instanceof ConnectorEntity actual) || actual.attachedSide() != side)
+		if (!this.level.hasChunkAt(machine))
 		{
 			return null;
 		}
@@ -634,33 +806,20 @@ public final class CableNetwork extends SavedData
 		}
 
 		//noinspection DataFlowIssue
-		return be.getCapability(GTCapability.CAPABILITY_ENERGY_CONTAINER, side.getOpposite()).orElse(null);
-	}
-
-	private boolean canAcceptEnergy(BlockPos sourceMachine, long connectorId)
-	{
-		IEnergyContainer container = getSinkEnergyContainer(sourceMachine, connectorId);
-
-		//noinspection DataFlowIssue
-		return container != null &&
-			container.inputsEnergy(this.graph.getConnector(connectorId).getOpposite()) &&
-			container.getEnergyCanBeInserted() > 0;
+		return be.getCapability(GTCapability.CAPABILITY_ENERGY_CONTAINER, side).orElse(null);
 	}
 
 	private static long roundedLoss(long hundredths)
 	{
-		return hundredths / 100 + (hundredths % 100 == 0 ? 0 : 1);
-	}
-
-	private static int tier(long voltage)
-	{
-		// GregTech's voltage tiers, capped at MAX (14).
-		return voltage <= 8 ? 0 : Math.min(14, (62 - Long.numberOfLeadingZeros(voltage - 1)) >> 1);
+		return (hundredths + 99) / 100;
 	}
 
 	private static int voltageHeat(long voltage, long rating)
 	{
-		return (int) (Math.log(Math.max(1, tier(voltage) - tier(rating))) * 45 + 36.5);
+		return (int) (Math.log(Math.max(
+			1,
+			GTUtil.getTierByVoltage(voltage) - GTUtil.getTierByVoltage(rating)
+		)) * 45 + 36.5);
 	}
 
 	/**

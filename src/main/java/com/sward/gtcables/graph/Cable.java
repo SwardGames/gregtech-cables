@@ -52,6 +52,11 @@ public final class Cable
 		this.color = color;
 	}
 
+	public long id()
+	{
+		return this.id;
+	}
+
 	public long other(long node)
 	{
 		return node == this.aId ? this.bId : this.aId;
@@ -93,10 +98,5 @@ public final class Cable
 			"lengthCm=" + this.lengthCm + ", " +
 			"cableType=" + this.cableType + ", " +
 			"color=" + this.color + ']';
-	}
-
-	public long id()
-	{
-		return this.id;
 	}
 }

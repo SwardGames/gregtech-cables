@@ -11,8 +11,6 @@ public class CablesConfig
 
 		public final ForgeConfigSpec.IntValue connectionMaxLength;
 
-		public final ForgeConfigSpec.IntValue maxRecursionDepth;
-
 		public Server(ForgeConfigSpec.Builder builder)
 		{
 			this.spoolCapacity = builder
@@ -28,16 +26,6 @@ public class CablesConfig
 				)
 				.worldRestart()
 				.defineInRange("connection_max_length", Integer.MAX_VALUE, 0, Integer.MAX_VALUE);
-
-			this.maxRecursionDepth = builder
-				.translation("config.gtcables.max_recursion_depth")
-				.comment(
-					"How many times it may recursively attempt to enter the cable network before failing.",
-					"This is used to prevent factorial growth when mixing cable networks with cable blocks.",
-					"If set to 1, then once energy flows through a cable network into a cable block, it cannot re-enter the network.",
-					"This will not prevent other blocks, such as diodes, from accepting power."
-				)
-				.defineInRange("max_recursion_depth", 3, 1, Integer.MAX_VALUE);
 		}
 	}
 
@@ -80,11 +68,6 @@ public class CablesConfig
 		}
 
 		return val;
-	}
-
-	public static int maxRecursionDepth()
-	{
-		return SERVER.maxRecursionDepth.get();
 	}
 
 	static final ForgeConfigSpec CLIENT_SPEC;
