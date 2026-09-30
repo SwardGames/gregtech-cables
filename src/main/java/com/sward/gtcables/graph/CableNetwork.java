@@ -103,7 +103,6 @@ public final class CableNetwork extends SavedData
 	private long epoch = Long.MIN_VALUE;
 
 	private boolean isTransferringPower = false;
-	private final LongSet activeNodes = new LongOpenHashSet();
 
 	private CableNetwork(ServerLevel level)
 	{
@@ -390,11 +389,6 @@ public final class CableNetwork extends SavedData
 
 		long sourceConnectorId = connector.asLong();
 
-		if (this.activeNodes.contains(sourceConnectorId))
-		{
-			return 0;
-		}
-
 		Direction sourceSide = this.graph.getConnector(sourceConnectorId);
 
 		if (sourceSide == null)
@@ -416,26 +410,26 @@ public final class CableNetwork extends SavedData
 			this.epoch = tick;
 		}
 
-		this.activeNodes.add(sourceConnectorId);
 		this.isTransferringPower = true;
-
-		Set<NodeKey> rejected = new HashSet<>();
-		LongSet voltageHeated = new LongOpenHashSet();
-		LongSet voltageHeatedBlocks = new LongOpenHashSet();
-
-		Map<NodeKey, Previous> previous = new HashMap<>();
-		Object2LongMap<NodeKey> distances = new Object2LongOpenHashMap<>();
-		PriorityQueue<Step> queue = new PriorityQueue<>(Comparator.comparingLong(Step::loss).thenComparing(Step::key));
 
 		try
 		{
+			ObjectSet<NodeKey> rejected = new ObjectOpenHashSet<>();
+			LongSet voltageHeated = new LongOpenHashSet();
+			LongSet voltageHeatedBlocks = new LongOpenHashSet();
+
+			Object2ObjectMap<NodeKey, Previous> previous = new Object2ObjectOpenHashMap<>();
+			Object2LongMap<NodeKey> distances = new Object2LongOpenHashMap<>();
+			PriorityQueue<Step> queue = new PriorityQueue<>(Comparator.comparingLong(Step::loss).thenComparing(Step::key));
+
+			NodeKey sourceKey = new NodeKey(sourceConnectorId, sourceSide);
+
 			while (remainingAmps > 0)
 			{
 				previous.clear();
 				distances.clear();
 				queue.clear();
 
-				NodeKey sourceKey = new NodeKey(sourceConnectorId, sourceSide);
 				distances.put(sourceKey, 0L);
 				queue.add(new Step(sourceKey, 0, 1));
 
@@ -459,7 +453,7 @@ public final class CableNetwork extends SavedData
 					{
 						BlockPos machine = BlockPos.of(node).relative(side);
 
-						if (!machine.equals(source))
+						if (!machine.equals(source) && !this.graph.hasConnector(machine.asLong()))
 						{
 							IEnergyContainer container = getEnergyContainer(machine, side.getOpposite());
 
@@ -496,11 +490,6 @@ public final class CableNetwork extends SavedData
 
 										long next = nextPos.asLong();
 
-										if (this.activeNodes.contains(next))
-										{
-											continue;
-										}
-
 										NodeKey nextKey = new NodeKey(next, nextFacing);
 
 										long loss = path.getMaxLoss() * 100;
@@ -536,11 +525,6 @@ public final class CableNetwork extends SavedData
 					for (Cable edge : this.graph.getAdjacentCables(node))
 					{
 						long next = edge.other(node);
-
-						if (this.activeNodes.contains(next))
-						{
-							continue;
-						}
 
 						long loss = stepLoss > Long.MAX_VALUE - edge.spanLoss
 							? Long.MAX_VALUE
@@ -652,28 +636,6 @@ public final class CableNetwork extends SavedData
 						}
 					);
 
-					LongSet reservation = new LongOpenHashSet();
-
-					path.forEach(
-						segment ->
-						{
-							Object e = segment.edge;
-
-							if (e instanceof Cable c)
-							{
-								if (this.activeNodes.add(c.aId))
-								{
-									reservation.add(c.aId);
-								}
-
-								if (this.activeNodes.add(c.bId))
-								{
-									reservation.add(c.bId);
-								}
-							}
-						}
-					);
-
 					try
 					{
 						Direction side = target.key.side;
@@ -692,8 +654,6 @@ public final class CableNetwork extends SavedData
 					}
 					finally
 					{
-						this.activeNodes.removeAll(reservation);
-
 						if (!delivered)
 						{
 							path.forEach(
@@ -789,7 +749,6 @@ public final class CableNetwork extends SavedData
 		finally
 		{
 			this.isTransferringPower = false;
-			this.activeNodes.remove(sourceConnectorId);
 
 			if (revision != this.heatRevision)
 			{
