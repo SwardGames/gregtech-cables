@@ -1,0 +1,33 @@
+{
+	"type": "minecraft:crafting_shaped",
+	"category": "misc",
+	"pattern": [
+		" W ",
+		"HRD",
+		"SPS"
+	],
+	"key": {
+		"W": {
+			"tag": "gtceu:tools/crafting_wrenches"
+		},
+		"H": {
+			"tag": "gtceu:tools/crafting_hammers"
+		},
+		"D": {
+			"tag": "gtceu:tools/crafting_screwdrivers"
+		},
+		"R": {
+			"tag": "forge:rings/iron"
+		},
+		"S": {
+			"tag": "forge:screws/iron"
+		},
+		"P": {
+			"tag": "forge:plates/iron"
+		}
+	},
+	"result": {
+		"item": "gtcables:connector",
+		"count": 2
+	}
+}
