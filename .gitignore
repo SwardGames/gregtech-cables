@@ -2,6 +2,7 @@
 .reference/
 build/
 run/
+run-data/
 run-mesh/
 .idea/
 *.iml
