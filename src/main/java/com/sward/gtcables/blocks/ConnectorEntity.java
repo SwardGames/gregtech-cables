@@ -1,18 +1,20 @@
 package com.sward.gtcables.blocks;
 
+import com.gregtechceu.gtceu.api.blockentity.IPaintable;
 import com.gregtechceu.gtceu.api.capability.IEnergyContainer;
 import com.gregtechceu.gtceu.api.capability.forge.GTCapability;
 import com.sward.gtcables.GregTechCables;
 import com.sward.gtcables.graph.CableNetwork;
 import net.minecraft.core.*;
 import net.minecraft.server.level.ServerLevel;
+import net.minecraft.world.level.block.Block;
 import net.minecraft.world.level.block.entity.BlockEntity;
 import net.minecraft.world.level.block.state.BlockState;
 import net.minecraftforge.common.capabilities.Capability;
 import net.minecraftforge.common.util.LazyOptional;
 import org.jetbrains.annotations.NotNull;
 
-public final class ConnectorEntity extends BlockEntity implements IEnergyContainer
+public final class ConnectorEntity extends BlockEntity implements IEnergyContainer, IPaintable
 {
 	private LazyOptional<IEnergyContainer> energy = LazyOptional.of(() -> this);
 
@@ -110,5 +112,44 @@ public final class ConnectorEntity extends BlockEntity implements IEnergyContain
 	public long getInputAmperage()
 	{
 		return Integer.MAX_VALUE;
+	}
+
+	@Override
+	public int getPaintingColor()
+	{
+		return getBlockState().getValue(ConnectorBlock.COLOR).rgb();
+	}
+
+	@Override
+	public void setPaintingColor(int rgb)
+	{
+		if (this.level == null)
+		{
+			return;
+		}
+
+		ConnectorColor color = ConnectorColor.fromRgb(rgb);
+		BlockState state = getBlockState();
+
+		if (state.getValue(ConnectorBlock.COLOR) != color)
+		{
+			this.level.setBlock(
+				this.worldPosition,
+				state.setValue(ConnectorBlock.COLOR, color),
+				Block.UPDATE_CLIENTS
+			);
+		}
+	}
+
+	@Override
+	public int getDefaultPaintingColor()
+	{
+		return IPaintable.UNPAINTED_COLOR;
+	}
+
+	@Override
+	public boolean isPainted()
+	{
+		return getBlockState().getValue(ConnectorBlock.COLOR) != ConnectorColor.UNPAINTED;
 	}
 }

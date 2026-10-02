@@ -1,0 +1,7 @@
+{
+  "parent": "gtcables:block/connector",
+  "textures": {
+    "0": "gtcables:block/connector_white",
+    "particle": "gtcables:block/connector_white"
+  }
+}

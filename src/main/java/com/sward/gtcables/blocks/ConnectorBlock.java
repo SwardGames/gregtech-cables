@@ -19,6 +19,7 @@ public final class ConnectorBlock extends BaseEntityBlock implements SimpleWater
 {
 	public static final DirectionProperty FACING = BlockStateProperties.FACING;
 	public static final BooleanProperty WATERLOGGED = BlockStateProperties.WATERLOGGED;
+	public static final EnumProperty<ConnectorColor> COLOR = EnumProperty.create("color", ConnectorColor.class);
 
 	private static final VoxelShape UP_SHAPE = Shapes.join(box(6, 1, 6, 10, 6, 10), box(4, 0, 4, 12, 1, 12), BooleanOp.OR);
 	private static final VoxelShape DOWN_SHAPE = Shapes.join(box(6, 10, 6, 10, 15, 10), box(4, 15, 4, 12, 16, 12), BooleanOp.OR);
@@ -34,6 +35,7 @@ public final class ConnectorBlock extends BaseEntityBlock implements SimpleWater
 		registerDefaultState(
 			this.stateDefinition.any()
 				.setValue(FACING, Direction.UP)
+				.setValue(COLOR, ConnectorColor.UNPAINTED)
 				.setValue(WATERLOGGED, false)
 		);
 	}
@@ -41,7 +43,7 @@ public final class ConnectorBlock extends BaseEntityBlock implements SimpleWater
 	@Override
 	protected void createBlockStateDefinition(StateDefinition.Builder<Block, BlockState> b)
 	{
-		b.add(FACING, WATERLOGGED);
+		b.add(FACING, COLOR, WATERLOGGED);
 	}
 
 	@Override
@@ -51,6 +53,7 @@ public final class ConnectorBlock extends BaseEntityBlock implements SimpleWater
 
 		return defaultBlockState()
 			.setValue(FACING, c.getClickedFace())
+			.setValue(COLOR, ConnectorColor.UNPAINTED)
 			.setValue(WATERLOGGED, fluid.getType() == Fluids.WATER);
 	}
 

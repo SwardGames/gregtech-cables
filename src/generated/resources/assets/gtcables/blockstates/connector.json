@@ -1,0 +1,446 @@
+{
+  "variants": {
+    "color=black,facing=down": {
+      "model": "gtcables:block/connector_black",
+      "x": 180
+    },
+    "color=black,facing=east": {
+      "model": "gtcables:block/connector_black",
+      "x": 270,
+      "y": 270
+    },
+    "color=black,facing=north": {
+      "model": "gtcables:block/connector_black",
+      "x": 270,
+      "y": 180
+    },
+    "color=black,facing=south": {
+      "model": "gtcables:block/connector_black",
+      "x": 270
+    },
+    "color=black,facing=up": {
+      "model": "gtcables:block/connector_black"
+    },
+    "color=black,facing=west": {
+      "model": "gtcables:block/connector_black",
+      "x": 270,
+      "y": 90
+    },
+    "color=blue,facing=down": {
+      "model": "gtcables:block/connector_blue",
+      "x": 180
+    },
+    "color=blue,facing=east": {
+      "model": "gtcables:block/connector_blue",
+      "x": 270,
+      "y": 270
+    },
+    "color=blue,facing=north": {
+      "model": "gtcables:block/connector_blue",
+      "x": 270,
+      "y": 180
+    },
+    "color=blue,facing=south": {
+      "model": "gtcables:block/connector_blue",
+      "x": 270
+    },
+    "color=blue,facing=up": {
+      "model": "gtcables:block/connector_blue"
+    },
+    "color=blue,facing=west": {
+      "model": "gtcables:block/connector_blue",
+      "x": 270,
+      "y": 90
+    },
+    "color=brown,facing=down": {
+      "model": "gtcables:block/connector_brown",
+      "x": 180
+    },
+    "color=brown,facing=east": {
+      "model": "gtcables:block/connector_brown",
+      "x": 270,
+      "y": 270
+    },
+    "color=brown,facing=north": {
+      "model": "gtcables:block/connector_brown",
+      "x": 270,
+      "y": 180
+    },
+    "color=brown,facing=south": {
+      "model": "gtcables:block/connector_brown",
+      "x": 270
+    },
+    "color=brown,facing=up": {
+      "model": "gtcables:block/connector_brown"
+    },
+    "color=brown,facing=west": {
+      "model": "gtcables:block/connector_brown",
+      "x": 270,
+      "y": 90
+    },
+    "color=cyan,facing=down": {
+      "model": "gtcables:block/connector_cyan",
+      "x": 180
+    },
+    "color=cyan,facing=east": {
+      "model": "gtcables:block/connector_cyan",
+      "x": 270,
+      "y": 270
+    },
+    "color=cyan,facing=north": {
+      "model": "gtcables:block/connector_cyan",
+      "x": 270,
+      "y": 180
+    },
+    "color=cyan,facing=south": {
+      "model": "gtcables:block/connector_cyan",
+      "x": 270
+    },
+    "color=cyan,facing=up": {
+      "model": "gtcables:block/connector_cyan"
+    },
+    "color=cyan,facing=west": {
+      "model": "gtcables:block/connector_cyan",
+      "x": 270,
+      "y": 90
+    },
+    "color=gray,facing=down": {
+      "model": "gtcables:block/connector_gray",
+      "x": 180
+    },
+    "color=gray,facing=east": {
+      "model": "gtcables:block/connector_gray",
+      "x": 270,
+      "y": 270
+    },
+    "color=gray,facing=north": {
+      "model": "gtcables:block/connector_gray",
+      "x": 270,
+      "y": 180
+    },
+    "color=gray,facing=south": {
+      "model": "gtcables:block/connector_gray",
+      "x": 270
+    },
+    "color=gray,facing=up": {
+      "model": "gtcables:block/connector_gray"
+    },
+    "color=gray,facing=west": {
+      "model": "gtcables:block/connector_gray",
+      "x": 270,
+      "y": 90
+    },
+    "color=green,facing=down": {
+      "model": "gtcables:block/connector_green",
+      "x": 180
+    },
+    "color=green,facing=east": {
+      "model": "gtcables:block/connector_green",
+      "x": 270,
+      "y": 270
+    },
+    "color=green,facing=north": {
+      "model": "gtcables:block/connector_green",
+      "x": 270,
+      "y": 180
+    },
+    "color=green,facing=south": {
+      "model": "gtcables:block/connector_green",
+      "x": 270
+    },
+    "color=green,facing=up": {
+      "model": "gtcables:block/connector_green"
+    },
+    "color=green,facing=west": {
+      "model": "gtcables:block/connector_green",
+      "x": 270,
+      "y": 90
+    },
+    "color=light_blue,facing=down": {
+      "model": "gtcables:block/connector_light_blue",
+      "x": 180
+    },
+    "color=light_blue,facing=east": {
+      "model": "gtcables:block/connector_light_blue",
+      "x": 270,
+      "y": 270
+    },
+    "color=light_blue,facing=north": {
+      "model": "gtcables:block/connector_light_blue",
+      "x": 270,
+      "y": 180
+    },
+    "color=light_blue,facing=south": {
+      "model": "gtcables:block/connector_light_blue",
+      "x": 270
+    },
+    "color=light_blue,facing=up": {
+      "model": "gtcables:block/connector_light_blue"
+    },
+    "color=light_blue,facing=west": {
+      "model": "gtcables:block/connector_light_blue",
+      "x": 270,
+      "y": 90
+    },
+    "color=light_gray,facing=down": {
+      "model": "gtcables:block/connector_light_gray",
+      "x": 180
+    },
+    "color=light_gray,facing=east": {
+      "model": "gtcables:block/connector_light_gray",
+      "x": 270,
+      "y": 270
+    },
+    "color=light_gray,facing=north": {
+      "model": "gtcables:block/connector_light_gray",
+      "x": 270,
+      "y": 180
+    },
+    "color=light_gray,facing=south": {
+      "model": "gtcables:block/connector_light_gray",
+      "x": 270
+    },
+    "color=light_gray,facing=up": {
+      "model": "gtcables:block/connector_light_gray"
+    },
+    "color=light_gray,facing=west": {
+      "model": "gtcables:block/connector_light_gray",
+      "x": 270,
+      "y": 90
+    },
+    "color=lime,facing=down": {
+      "model": "gtcables:block/connector_lime",
+      "x": 180
+    },
+    "color=lime,facing=east": {
+      "model": "gtcables:block/connector_lime",
+      "x": 270,
+      "y": 270
+    },
+    "color=lime,facing=north": {
+      "model": "gtcables:block/connector_lime",
+      "x": 270,
+      "y": 180
+    },
+    "color=lime,facing=south": {
+      "model": "gtcables:block/connector_lime",
+      "x": 270
+    },
+    "color=lime,facing=up": {
+      "model": "gtcables:block/connector_lime"
+    },
+    "color=lime,facing=west": {
+      "model": "gtcables:block/connector_lime",
+      "x": 270,
+      "y": 90
+    },
+    "color=magenta,facing=down": {
+      "model": "gtcables:block/connector_magenta",
+      "x": 180
+    },
+    "color=magenta,facing=east": {
+      "model": "gtcables:block/connector_magenta",
+      "x": 270,
+      "y": 270
+    },
+    "color=magenta,facing=north": {
+      "model": "gtcables:block/connector_magenta",
+      "x": 270,
+      "y": 180
+    },
+    "color=magenta,facing=south": {
+      "model": "gtcables:block/connector_magenta",
+      "x": 270
+    },
+    "color=magenta,facing=up": {
+      "model": "gtcables:block/connector_magenta"
+    },
+    "color=magenta,facing=west": {
+      "model": "gtcables:block/connector_magenta",
+      "x": 270,
+      "y": 90
+    },
+    "color=orange,facing=down": {
+      "model": "gtcables:block/connector_orange",
+      "x": 180
+    },
+    "color=orange,facing=east": {
+      "model": "gtcables:block/connector_orange",
+      "x": 270,
+      "y": 270
+    },
+    "color=orange,facing=north": {
+      "model": "gtcables:block/connector_orange",
+      "x": 270,
+      "y": 180
+    },
+    "color=orange,facing=south": {
+      "model": "gtcables:block/connector_orange",
+      "x": 270
+    },
+    "color=orange,facing=up": {
+      "model": "gtcables:block/connector_orange"
+    },
+    "color=orange,facing=west": {
+      "model": "gtcables:block/connector_orange",
+      "x": 270,
+      "y": 90
+    },
+    "color=pink,facing=down": {
+      "model": "gtcables:block/connector_pink",
+      "x": 180
+    },
+    "color=pink,facing=east": {
+      "model": "gtcables:block/connector_pink",
+      "x": 270,
+      "y": 270
+    },
+    "color=pink,facing=north": {
+      "model": "gtcables:block/connector_pink",
+      "x": 270,
+      "y": 180
+    },
+    "color=pink,facing=south": {
+      "model": "gtcables:block/connector_pink",
+      "x": 270
+    },
+    "color=pink,facing=up": {
+      "model": "gtcables:block/connector_pink"
+    },
+    "color=pink,facing=west": {
+      "model": "gtcables:block/connector_pink",
+      "x": 270,
+      "y": 90
+    },
+    "color=purple,facing=down": {
+      "model": "gtcables:block/connector_purple",
+      "x": 180
+    },
+    "color=purple,facing=east": {
+      "model": "gtcables:block/connector_purple",
+      "x": 270,
+      "y": 270
+    },
+    "color=purple,facing=north": {
+      "model": "gtcables:block/connector_purple",
+      "x": 270,
+      "y": 180
+    },
+    "color=purple,facing=south": {
+      "model": "gtcables:block/connector_purple",
+      "x": 270
+    },
+    "color=purple,facing=up": {
+      "model": "gtcables:block/connector_purple"
+    },
+    "color=purple,facing=west": {
+      "model": "gtcables:block/connector_purple",
+      "x": 270,
+      "y": 90
+    },
+    "color=red,facing=down": {
+      "model": "gtcables:block/connector_red",
+      "x": 180
+    },
+    "color=red,facing=east": {
+      "model": "gtcables:block/connector_red",
+      "x": 270,
+      "y": 270
+    },
+    "color=red,facing=north": {
+      "model": "gtcables:block/connector_red",
+      "x": 270,
+      "y": 180
+    },
+    "color=red,facing=south": {
+      "model": "gtcables:block/connector_red",
+      "x": 270
+    },
+    "color=red,facing=up": {
+      "model": "gtcables:block/connector_red"
+    },
+    "color=red,facing=west": {
+      "model": "gtcables:block/connector_red",
+      "x": 270,
+      "y": 90
+    },
+    "color=unpainted,facing=down": {
+      "model": "gtcables:block/connector_unpainted",
+      "x": 180
+    },
+    "color=unpainted,facing=east": {
+      "model": "gtcables:block/connector_unpainted",
+      "x": 270,
+      "y": 270
+    },
+    "color=unpainted,facing=north": {
+      "model": "gtcables:block/connector_unpainted",
+      "x": 270,
+      "y": 180
+    },
+    "color=unpainted,facing=south": {
+      "model": "gtcables:block/connector_unpainted",
+      "x": 270
+    },
+    "color=unpainted,facing=up": {
+      "model": "gtcables:block/connector_unpainted"
+    },
+    "color=unpainted,facing=west": {
+      "model": "gtcables:block/connector_unpainted",
+      "x": 270,
+      "y": 90
+    },
+    "color=white,facing=down": {
+      "model": "gtcables:block/connector_white",
+      "x": 180
+    },
+    "color=white,facing=east": {
+      "model": "gtcables:block/connector_white",
+      "x": 270,
+      "y": 270
+    },
+    "color=white,facing=north": {
+      "model": "gtcables:block/connector_white",
+      "x": 270,
+      "y": 180
+    },
+    "color=white,facing=south": {
+      "model": "gtcables:block/connector_white",
+      "x": 270
+    },
+    "color=white,facing=up": {
+      "model": "gtcables:block/connector_white"
+    },
+    "color=white,facing=west": {
+      "model": "gtcables:block/connector_white",
+      "x": 270,
+      "y": 90
+    },
+    "color=yellow,facing=down": {
+      "model": "gtcables:block/connector_yellow",
+      "x": 180
+    },
+    "color=yellow,facing=east": {
+      "model": "gtcables:block/connector_yellow",
+      "x": 270,
+      "y": 270
+    },
+    "color=yellow,facing=north": {
+      "model": "gtcables:block/connector_yellow",
+      "x": 270,
+      "y": 180
+    },
+    "color=yellow,facing=south": {
+      "model": "gtcables:block/connector_yellow",
+      "x": 270
+    },
+    "color=yellow,facing=up": {
+      "model": "gtcables:block/connector_yellow"
+    },
+    "color=yellow,facing=west": {
+      "model": "gtcables:block/connector_yellow",
+      "x": 270,
+      "y": 90
+    }
+  }
+}
