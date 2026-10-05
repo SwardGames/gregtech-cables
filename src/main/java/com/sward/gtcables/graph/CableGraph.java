@@ -4,12 +4,15 @@ import com.sward.gtcables.CableType;
 import com.sward.gtcables.util.PlayerHelper;
 import it.unimi.dsi.fastutil.longs.Long2ObjectMap;
 import it.unimi.dsi.fastutil.longs.Long2ObjectOpenHashMap;
+import it.unimi.dsi.fastutil.longs.LongOpenHashSet;
+import it.unimi.dsi.fastutil.longs.LongSet;
 import net.minecraft.MethodsReturnNonnullByDefault;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
 import net.minecraft.core.SectionPos;
 import net.minecraft.util.Mth;
 import net.minecraft.world.entity.player.Player;
+import net.minecraft.world.level.BlockGetter;
 import net.minecraft.world.phys.AABB;
 import net.minecraft.world.phys.Vec3;
 import org.jetbrains.annotations.NotNull;
@@ -183,30 +186,11 @@ public final class CableGraph
 		this.adjacency.computeIfAbsent(aId, k -> new ArrayList<>()).add(cable);
 		this.adjacency.computeIfAbsent(bId, k -> new ArrayList<>()).add(cable);
 
-		int x0 = Math.min(a.getX(), b.getX());
-		int x1 = Math.max(a.getX(), b.getX());
-		int z0 = Math.min(a.getZ(), b.getZ());
-		int z1 = Math.max(a.getZ(), b.getZ());
+		long[] chunks = crossedChunks(getConnectorPosition(a), getConnectorPosition(b));
 
-		int chunkX0 = SectionPos.blockToSectionCoord(x0 - 1);
-		int chunkX1 = SectionPos.blockToSectionCoord(x1 + 1);
-		int chunkZ0 = SectionPos.blockToSectionCoord(z0 - 1);
-		int chunkZ1 = SectionPos.blockToSectionCoord(z1 + 1);
-
-		long[] chunks = new long[(chunkX1 - chunkX0 + 1) * (chunkZ1 - chunkZ0 + 1)];
-
-		int i = 0;
-
-		for (int chunkX = chunkX0; chunkX <= chunkX1; ++chunkX)
+		for (long chunkId : chunks)
 		{
-			for (int chunkZ = chunkZ0; chunkZ <= chunkZ1; ++chunkZ)
-			{
-				long chunkId = getChunkId(chunkX, chunkZ);
-
-				chunks[i++] = chunkId;
-
-				this.chunkCables.computeIfAbsent(chunkId, k -> new HashSet<>()).add(cable);
-			}
+			this.chunkCables.computeIfAbsent(chunkId, k -> new HashSet<>()).add(cable);
 		}
 
 		this.cableChunks.put(cable.id, chunks);
@@ -373,5 +357,59 @@ public final class CableGraph
 	private static long getChunkId(int chunkX, int chunkZ)
 	{
 		return ((long) chunkZ << 32) | Integer.toUnsignedLong(chunkX);
+	}
+
+	private static long[] crossedChunks(Vec3 a, Vec3 b)
+	{
+		LongSet chunks = new LongOpenHashSet();
+
+		Vec3 flatA = new Vec3(a.x, 0D, a.z);
+		Vec3 flatB = new Vec3(b.x, 0D, b.z);
+
+		Vec3 gridA = new Vec3(a.x / 16D, 0.5D, a.z / 16D);
+		Vec3 gridB = new Vec3(b.x / 16D, 0.5D, b.z / 16D);
+
+		// Ensures that the endpoints are handled.
+		collectChunks(chunks, flatA, flatB, Mth.floor(gridA.x), Mth.floor(gridA.z));
+		collectChunks(chunks, flatA, flatB, Mth.floor(gridB.x), Mth.floor(gridB.z));
+
+		BlockGetter.traverseBlocks(
+			gridA, gridB, chunks,
+			(result, cell) ->
+			{
+				collectChunks(result, flatA, flatB, cell.getX(), cell.getZ());
+
+				return null;
+			},
+			result -> null
+		);
+
+		return chunks.toLongArray();
+	}
+
+	private static void collectChunks(LongSet chunks, Vec3 a, Vec3 b, int chunkX, int chunkZ)
+	{
+		double padding = 0.5D + 1e-7D;
+
+		for (int x = chunkX - 1; x <= chunkX + 1; x++)
+		{
+			for (int z = chunkZ - 1; z <= chunkZ + 1; z++)
+			{
+				AABB bounds = new AABB(
+					x * 16D - padding,
+					-1,
+					z * 16D - padding,
+
+					(x + 1) * 16D + padding,
+					1,
+					(z + 1) * 16D + padding
+				);
+
+				if (bounds.contains(a) || bounds.contains(b) || bounds.clip(a, b).isPresent())
+				{
+					chunks.add(getChunkId(x, z));
+				}
+			}
+		}
 	}
 }
