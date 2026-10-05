@@ -119,7 +119,7 @@ public final class CableNetworkEvents
 		{
 			case LINE ->
 			{
-				return graph.getCable(
+				return graph.findCable(
 					bounds,
 					c ->
 					{
@@ -132,7 +132,7 @@ public final class CableNetworkEvents
 			}
 			case CABLE ->
 			{
-				return graph.getCable(
+				return graph.findCable(
 					bounds,
 					c ->
 					{

@@ -263,7 +263,7 @@ public final class CableGraph
 		this.cableChunks.clear();
 	}
 
-	public void forEachOverlap(AABB bounds, Consumer<@NotNull Cable> cableConsumer)
+	public void forEachCableInBounds(AABB bounds, Consumer<@NotNull Cable> cableConsumer)
 	{
 		int chunkX0 = SectionPos.posToSectionCoord(Mth.floor(bounds.minX));
 		int chunkX1 = SectionPos.posToSectionCoord(Mth.ceil(bounds.maxX));
@@ -294,7 +294,7 @@ public final class CableGraph
 		}
 	}
 
-	public @Nullable Cable getCable(AABB bounds, Predicate<@NotNull Cable> predicate)
+	public @Nullable Cable findCable(AABB bounds, Predicate<@NotNull Cable> predicate)
 	{
 		int chunkX0 = SectionPos.posToSectionCoord(Mth.floor(bounds.minX));
 		int chunkX1 = SectionPos.posToSectionCoord(Mth.ceil(bounds.maxX));
@@ -341,7 +341,7 @@ public final class CableGraph
 			Cable hit = null;
 		};
 
-		forEachOverlap(
+		forEachCableInBounds(
 			new AABB(start, start.add(dir.scale(maxDistance))),
 			c ->
 			{

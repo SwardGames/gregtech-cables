@@ -365,7 +365,7 @@ public final class ClientCableNetwork
 		}
 
 		// Second, add missing wires
-		GRAPH.forEachOverlap(renderBounds, c -> CABLE_VISUALS.computeIfAbsent(c, Visual::create));
+		GRAPH.forEachCableInBounds(renderBounds, c -> CABLE_VISUALS.computeIfAbsent(c, Visual::create));
 
 		ClientLevel level = Minecraft.getInstance().level;
 
