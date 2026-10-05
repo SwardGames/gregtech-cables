@@ -567,6 +567,8 @@ public final class CableNetwork extends SavedData
 
 				boolean delivered;
 
+				int ampsApplied = 0;
+
 				do
 				{
 					delivered = false;
@@ -574,7 +576,7 @@ public final class CableNetwork extends SavedData
 					long packetLoss = loss / 100 + roundedLoss(fraction + loss % 100) - roundedLoss(fraction);
 					long packetVoltage = voltage - packetLoss;
 
-					boolean burned = false;
+					boolean routeInvalid = false;
 
 					for (Previous segment : path)
 					{
@@ -594,7 +596,7 @@ public final class CableNetwork extends SavedData
 									applyHeat(cableEdge, voltageHeat(voltage, wireVoltage), tick);
 								}
 
-								burned |= !this.graph.hasCable(cableEdge.id);
+								routeInvalid |= !this.graph.hasCable(cableEdge.id);
 							}
 						}
 						else if (edge instanceof EnergyRoutePath routeEdge)
@@ -612,7 +614,7 @@ public final class CableNetwork extends SavedData
 										c.applyHeat(voltageHeat(voltage, wireVoltage));
 									}
 
-									burned |= c.isInValid();
+									routeInvalid |= c.isInValid();
 								}
 							}
 						}
@@ -622,7 +624,7 @@ public final class CableNetwork extends SavedData
 						}
 					}
 
-					if (burned)
+					if (routeInvalid)
 					{
 						break;
 					}
@@ -678,6 +680,8 @@ public final class CableNetwork extends SavedData
 					if (delivered)
 					{
 						fraction = (fraction + loss % 100) % 100;
+
+						++ampsApplied;
 						remainingAmps -= 1;
 
 						long travelledLoss = 0;
@@ -688,47 +692,57 @@ public final class CableNetwork extends SavedData
 							Previous segment = path.get(i);
 							Object edge = segment.edge;
 
-							if (edge instanceof Cable cable && this.graph.getCable(cable.id) == edge)
+							if (edge instanceof Cable cable)
 							{
-								Exposure exposure = this.exposures.get(cable.id);
-
 								travelledLoss += cable.spanLoss;
 
-								if (exposure != null)
+								if (this.graph.getCable(cable.id) == edge)
 								{
-									if (this.poweredTick != tick)
+									Exposure exposure = this.exposures.get(cable.id);
+
+									if (exposure != null)
 									{
-										this.powered.clear();
-										this.poweredTick = tick;
+										if (this.poweredTick != tick)
+										{
+											this.powered.clear();
+											this.poweredTick = tick;
+										}
+
+										exposure.activity.accept(voltage - roundedLoss(travelledLoss), tick);
+										this.powered.add(cable.id);
 									}
 
-									exposure.activity.accept(voltage - roundedLoss(travelledLoss), tick);
-									this.powered.add(cable.id);
+									long excess = this.used.getOrDefault(cable.id, 0L) - cable.cableType.amps();
+
+									// GT adds 40 K per excess amp in the current tick. This adapter sends 1 A packets.
+									if (excess > 0)
+									{
+										applyHeat(cable, 40, tick);
+
+										routeInvalid |= !this.graph.hasCable(cable.id);
+									}
 								}
-
-								long excess = this.used.getOrDefault(cable.id, 0L) - cable.cableType.amps();
-
-								// GT adds 40 K per excess amp in the current tick. This adapter sends 1 A packets.
-								if (excess > 0)
+								else
 								{
-									applyHeat(cable, Math.min(excess, BURN_TEMPERATURE) * 40, tick);
-
-									burned |= !this.graph.hasCable(cable.id);
+									routeInvalid = true;
 								}
 							}
 							else if (edge instanceof EnergyRoutePath routePath)
 							{
-								Objects.requireNonNull(segment.network).addEnergyFluxPerSec(voltage - roundedLoss(travelledLoss));
+								Objects.requireNonNull(segment.network)
+									.addEnergyFluxPerSec(voltage - roundedLoss(travelledLoss));
 
 								for (CableBlockEntity c : routePath.getPath())
 								{
 									travelledLoss += (long) c.getNodeData().getLossPerBlock() * 100;
 
-									if (!c.isInValid())
+									if (c.isInValid())
 									{
-										c.incrementAmperage(1, voltage - roundedLoss(travelledLoss));
-
-										burned |= c.isInValid();
+										routeInvalid = true;
+									}
+									else
+									{
+										routeInvalid |= c.isInValid();
 									}
 								}
 							}
@@ -738,7 +752,7 @@ public final class CableNetwork extends SavedData
 							}
 						}
 
-						if (burned)
+						if (routeInvalid)
 						{
 							break;
 						}
@@ -749,6 +763,38 @@ public final class CableNetwork extends SavedData
 					}
 				}
 				while (delivered && remainingAmps > 0);
+
+				if (ampsApplied > 0)
+				{
+					long travelledLoss = 0;
+
+					for (int i = path.size() - 1; i >= 0; i--)
+					{
+						Previous segment = path.get(i);
+						Object edge = segment.edge;
+
+						if (edge instanceof Cable cable)
+						{
+							travelledLoss += cable.spanLoss;
+						}
+						else if (edge instanceof EnergyRoutePath routePath)
+						{
+							for (CableBlockEntity c : routePath.getPath())
+							{
+								travelledLoss += (long) c.getNodeData().getLossPerBlock() * 100;
+
+								if (!c.isInValid())
+								{
+									c.incrementAmperage(ampsApplied, voltage - roundedLoss(travelledLoss));
+								}
+							}
+						}
+						else
+						{
+							throw new IllegalStateException("Unexpected route edge: " + edge);
+						}
+					}
+				}
 			}
 		}
 		finally
