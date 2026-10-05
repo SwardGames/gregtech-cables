@@ -1,8 +1,17 @@
 package com.sward.gtcables.graph;
 
+import com.sward.gtcables.GregTechCables;
 import net.minecraft.MethodsReturnNonnullByDefault;
+import net.minecraft.core.BlockPos;
+import net.minecraft.world.level.BlockGetter;
+import net.minecraft.world.level.ClipContext;
+import net.minecraft.world.level.Level;
+import net.minecraft.world.level.block.state.BlockState;
+import net.minecraft.world.phys.HitResult;
 import net.minecraft.world.phys.Vec3;
 import net.minecraft.world.phys.AABB;
+import net.minecraft.world.phys.shapes.Shapes;
+import net.minecraft.world.phys.shapes.VoxelShape;
 
 import javax.annotation.ParametersAreNonnullByDefault;
 import java.util.ArrayList;
@@ -28,7 +37,6 @@ public final class CableGeometry
 		public final double radius;
 
 		private final Vec3[] points;
-		private final Vec3[] tangents;
 		private final Vec3[] across;
 		private final Vec3[] up;
 		private final Vec3[][] rings;
@@ -39,7 +47,6 @@ public final class CableGeometry
 			int count = segments(a, b) + 1;
 
 			this.points = new Vec3[count];
-			this.tangents = new Vec3[count];
 			this.across = new Vec3[count];
 			this.up = new Vec3[count];
 			this.rings = new Vec3[count][4];
@@ -74,7 +81,6 @@ public final class CableGeometry
 
 				double miter = i == 0 || i == count - 1 ? 1 : 1 / Math.max(0.5D, tangent.dot(incoming));
 
-				this.tangents[i] = tangent;
 				this.across[i] = u;
 				this.up[i] = v;
 
@@ -109,11 +115,6 @@ public final class CableGeometry
 		public Vec3 corner(int ring, int corner)
 		{
 			return this.rings[ring][corner];
-		}
-
-		public Vec3 tangent(int i)
-		{
-			return this.tangents[i];
 		}
 
 		public double distance(int i)
@@ -422,5 +423,78 @@ public final class CableGeometry
 			maxY + padding,
 			maxZ + padding
 		);
+	}
+
+	/// Determines if the line between the two points would intersect any blocks not tagged 'gtcables:cable_passthrough'
+	/// @param level The level the cable is in
+	/// @param a The first point
+	/// @param b The second point
+	/// @return If the cable hits a block
+	public static boolean lineObstructed(Level level, Vec3 a, Vec3 b)
+	{
+		ClipContext clipContext = new ClipContext(a, b, ClipContext.Block.COLLIDER, ClipContext.Fluid.NONE, null)
+		{
+			@Override
+			public VoxelShape getBlockShape(BlockState pBlockState, BlockGetter pLevel, BlockPos pPos)
+			{
+				if (pBlockState.is(GregTechCables.CABLE_PASSTHROUGH))
+				{
+					return Shapes.empty();
+				}
+
+				return super.getBlockShape(pBlockState, pLevel, pPos);
+			}
+		};
+
+		return level.clip(clipContext).getType() == HitResult.Type.BLOCK;
+	}
+
+	/// Determines if a cable connecting two points would intersect any blocks not tagged 'gtcables:cable_passthrough'
+	/// @param level The level the cable is in
+	/// @param a The first connector position
+	/// @param b The second connector position
+	/// @return If the cable hits a block
+	public static boolean cableObstructed(Level level, Vec3 a, Vec3 b)
+	{
+		int segments = CableGeometry.segments(a, b);
+
+		Vec3 prev = a;
+
+		for (int i = 1; i <= segments; i++)
+		{
+			Vec3 next = CableGeometry.point(a, b, (double) i / segments);
+
+			if (lineObstructed(level, prev, next))
+			{
+				return true;
+			}
+
+			prev = next;
+		}
+
+		return false;
+	}
+
+	public static boolean cableIntersects(VoxelShape shape, BlockPos blockPos, Vec3 a, Vec3 b)
+	{
+		AABB blockBounds = new AABB(blockPos);
+
+		int segments = CableGeometry.segments(a, b);
+
+		Vec3 prev = a;
+
+		for (int i = 1; i <= segments; i++)
+		{
+			Vec3 next = CableGeometry.point(a, b, (double) i / segments);
+
+			if (blockBounds.intersects(new AABB(prev, next)) && shape.clip(prev, next, blockPos) != null)
+			{
+				return true;
+			}
+
+			prev = next;
+		}
+
+		return false;
 	}
 }

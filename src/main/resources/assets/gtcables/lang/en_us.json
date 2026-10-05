@@ -17,6 +17,7 @@
   "message.gtcables.insufficient_wire":"This spool doesn't have enough wire.",
   "message.gtcables.invalid_wire":"This wire type is unavailable.",
   "message.gtcables.duplicate":"These connectors are already connected.",
+  "message.gtcables.cable_obstructed":"The cable is obstructed.",
   "message.gtcables.connected":"Cable connected.",
   "message.gtcables.no_space":"Make enough room in empty or matching spools before cutting.",
   "message.gtcables.cut_first":"Recover attached cables with a wire cutter before breaking this connector.",
@@ -24,7 +25,9 @@
 
   "config.gtcables.spool_max_capacity": "Max Spool Capacity",
   "config.gtcables.connection_max_length": "Max Connection Length",
-  "config.gtcables.max_recursion_depth": "Max Recursion Depth",
+  "config.gtcables.cable_intersection_test": "Cable Intersection Test",
+
+  "config.gtcables.render_distance": "Cable Render Distance",
 
   "config.jade.plugin_gtcables.wire_data":"Suspended wire data",
   "jade.gtcables.voltage": "Voltage: %s",

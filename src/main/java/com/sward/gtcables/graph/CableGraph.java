@@ -18,6 +18,7 @@ import org.jetbrains.annotations.Nullable;
 import javax.annotation.ParametersAreNonnullByDefault;
 import java.util.*;
 import java.util.function.Consumer;
+import java.util.function.Predicate;
 
 /**
  * Pure server-side graph.
@@ -291,6 +292,42 @@ public final class CableGraph
 				}
 			}
 		}
+	}
+
+	public @Nullable Cable getCable(AABB bounds, Predicate<@NotNull Cable> predicate)
+	{
+		int chunkX0 = SectionPos.posToSectionCoord(Mth.floor(bounds.minX));
+		int chunkX1 = SectionPos.posToSectionCoord(Mth.ceil(bounds.maxX));
+		int chunkZ0 = SectionPos.posToSectionCoord(Mth.floor(bounds.minZ));
+		int chunkZ1 = SectionPos.posToSectionCoord(Mth.ceil(bounds.maxZ));
+
+		Set<Cable> checkedCables = new HashSet<>();
+
+		for (int chunkX = chunkX0; chunkX <= chunkX1; ++chunkX)
+		{
+			for (int chunkZ = chunkZ0; chunkZ <= chunkZ1; ++chunkZ)
+			{
+				Set<Cable> cables = this.chunkCables.get(getChunkId(chunkX, chunkZ));
+
+				if (cables == null)
+				{
+					continue;
+				}
+
+				for (Cable cable : cables)
+				{
+					if (checkedCables.add(cable) && cable.bounds.intersects(bounds))
+					{
+						if (predicate.test(cable))
+						{
+							return cable;
+						}
+					}
+				}
+			}
+		}
+
+		return null;
 	}
 
 	/**

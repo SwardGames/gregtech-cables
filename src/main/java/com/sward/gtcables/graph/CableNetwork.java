@@ -36,6 +36,7 @@ import net.minecraft.world.level.Level;
 import net.minecraft.world.level.block.entity.BlockEntity;
 import net.minecraft.world.level.block.Block;
 import net.minecraft.world.level.saveddata.SavedData;
+import net.minecraft.world.phys.Vec3;
 import net.minecraftforge.event.entity.player.PlayerInteractEvent;
 import net.minecraftforge.network.PacketDistributor;
 import org.jetbrains.annotations.NotNull;
@@ -118,6 +119,8 @@ public final class CableNetwork extends SavedData
 		);
 	}
 
+	public CableGraph graph() { return this.graph; }
+
 	public boolean hasCable(long id)
 	{
 		return this.graph.hasCable(id);
@@ -147,6 +150,8 @@ public final class CableNetwork extends SavedData
 	{
 		return this.graph.getConnector(pos.asLong());
 	}
+
+	public Vec3 getConnectorPosition(BlockPos pos) { return this.graph.getConnectorPosition(pos); }
 
 	public boolean connect(BlockPos a, BlockPos b, CableType cableType, int cm)
 	{

@@ -5,11 +5,20 @@ import org.apache.commons.lang3.tuple.Pair;
 
 public class CablesConfig
 {
+	public enum CableIntersectionTest
+	{
+		NONE,
+		LINE,
+		CABLE
+	}
+
 	public static class Server
 	{
 		public final ForgeConfigSpec.IntValue spoolCapacity;
 
 		public final ForgeConfigSpec.IntValue connectionMaxLength;
+
+		public final ForgeConfigSpec.EnumValue<CableIntersectionTest> cableIntersectionTest;
 
 		public Server(ForgeConfigSpec.Builder builder)
 		{
@@ -26,6 +35,21 @@ public class CablesConfig
 				)
 				.worldRestart()
 				.defineInRange("connection_max_length", Integer.MAX_VALUE, 0, Integer.MAX_VALUE);
+
+			this.cableIntersectionTest = builder
+				.translation("config.gtcables.cable_intersection_test")
+				.comment(
+					"What block intersection tests are performed when placing a cable between two connectors.",
+					"Blocks can be ignored by tagging them as 'gtcables:cable_passthrough'.",
+					"",
+					"Options are:",
+					"NONE: No tests are performed, cables can be placed through blocks freely.",
+					"LINE: The straight line between the two connectors is tested.",
+					"CABLE: The centerline of the cable is tested.",
+					"",
+					"This setting will not be applied retroactively."
+				)
+				.defineEnum("cable_intersection_test", CableIntersectionTest.CABLE);
 		}
 	}
 
@@ -68,6 +92,11 @@ public class CablesConfig
 		}
 
 		return val;
+	}
+
+	public static CableIntersectionTest cableIntersectionTest()
+	{
+		return SERVER.cableIntersectionTest.get();
 	}
 
 	static final ForgeConfigSpec CLIENT_SPEC;

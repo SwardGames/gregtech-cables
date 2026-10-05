@@ -3,12 +3,19 @@ package com.sward.gtcables.events;
 import com.gregtechceu.gtceu.common.item.ColorSprayBehaviour;
 import com.sward.gtcables.GregTechCables;
 import com.sward.gtcables.client.ClientCableNetwork;
+import com.sward.gtcables.graph.Cable;
 import com.sward.gtcables.graph.CableNetwork;
 import com.sward.gtcables.util.CableTools;
+import net.minecraft.core.BlockPos;
 import net.minecraft.server.level.ServerLevel;
+import net.minecraft.world.item.BlockItem;
 import net.minecraft.world.item.DyeColor;
 import net.minecraft.world.item.ItemStack;
+import net.minecraft.world.item.context.BlockPlaceContext;
+import net.minecraft.world.level.block.state.BlockState;
+import net.minecraft.world.phys.shapes.VoxelShape;
 import net.minecraftforge.event.entity.player.PlayerInteractEvent;
+import net.minecraftforge.eventbus.api.Event;
 import net.minecraftforge.eventbus.api.SubscribeEvent;
 import net.minecraftforge.fml.LogicalSide;
 import net.minecraftforge.fml.common.Mod;
@@ -27,6 +34,56 @@ public class PlayerInteractEventHandlers
 	public static void rightClickBlock(PlayerInteractEvent.RightClickBlock e)
 	{
 		rightClickAny(e);
+
+		if (!e.getLevel().isClientSide)
+		{
+			return;
+		}
+
+		if (!e.getLevel().dimension().location().equals(ClientCableNetwork.dimension()))
+		{
+			return;
+		}
+
+		ItemStack stack = e.getItemStack();
+
+		if (!(stack.getItem() instanceof BlockItem item))
+		{
+			return;
+		}
+
+		BlockPlaceContext context = new BlockPlaceContext(e.getEntity(), e.getHand(), stack, e.getHitVec());
+
+		if (!context.canPlace())
+		{
+			return;
+		}
+
+		context = item.updatePlacementContext(context);
+
+		if (context == null)
+		{
+			return;
+		}
+
+		BlockPos pos = context.getClickedPos();
+		BlockState state = item.getBlock().getStateForPlacement(context);
+
+		if (state == null || state.is(GregTechCables.CABLE_PASSTHROUGH))
+		{
+			return;
+		}
+
+		VoxelShape shape = state.getCollisionShape(e.getLevel(), pos);
+
+		Cable intersectingCable = CableNetworkEvents.getIntersectingCable(ClientCableNetwork.graph(), shape, pos);
+
+		if (intersectingCable != null)
+		{
+			ClientCableNetwork.highlightCable(intersectingCable, 0xFF0000);
+
+			e.setUseItem(Event.Result.DENY);
+		}
 	}
 
 	@SubscribeEvent

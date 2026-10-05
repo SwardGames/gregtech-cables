@@ -18,8 +18,11 @@ final class CableHighlight extends RenderType
 		false,
 		false,
 		CompositeState.builder()
-			.setShaderState(POSITION_COLOR_SHADER).setCullState(CULL)
-			.setDepthTestState(LEQUAL_DEPTH_TEST).setWriteMaskState(COLOR_WRITE)
+			.setShaderState(POSITION_COLOR_SHADER)
+			.setTransparencyState(TRANSLUCENT_TRANSPARENCY)
+			.setCullState(CULL)
+			.setDepthTestState(LEQUAL_DEPTH_TEST)
+			.setWriteMaskState(COLOR_WRITE)
 			.createCompositeState(false)
 	);
 

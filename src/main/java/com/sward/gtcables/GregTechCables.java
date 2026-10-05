@@ -7,6 +7,8 @@ import com.sward.gtcables.items.SpoolItem;
 import com.sward.gtcables.network.CablePackets;
 import com.sward.gtcables.recipes.SpoolRecipe;
 import net.minecraft.resources.ResourceLocation;
+import net.minecraft.tags.BlockTags;
+import net.minecraft.tags.TagKey;
 import net.minecraft.world.item.*;
 import net.minecraft.world.item.crafting.*;
 import net.minecraft.world.level.block.Block;
@@ -61,6 +63,9 @@ public final class GregTechCables
 		"spool_transfer",
 		() -> new SimpleCraftingRecipeSerializer<>(SpoolRecipe::new)
 	);
+
+	// Block Tags
+	public static final TagKey<Block> CABLE_PASSTHROUGH = BlockTags.create(id("cable_passthrough"));
 
 	public GregTechCables(FMLJavaModLoadingContext context)
 	{

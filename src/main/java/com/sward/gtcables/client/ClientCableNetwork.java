@@ -11,6 +11,8 @@ import com.sward.gtcables.graph.CableHitResult;
 import com.sward.gtcables.items.SpoolItem;
 import com.sward.gtcables.network.clientbound.*;
 import com.sward.gtcables.util.CableTools;
+import it.unimi.dsi.fastutil.objects.ObjectArrayList;
+import it.unimi.dsi.fastutil.objects.ObjectList;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.multiplayer.ClientLevel;
 import net.minecraft.client.renderer.*;
@@ -20,6 +22,7 @@ import net.minecraft.nbt.CompoundTag;
 import net.minecraft.resources.ResourceLocation;
 import net.minecraft.sounds.SoundEvents;
 import net.minecraft.sounds.SoundSource;
+import net.minecraft.util.Mth;
 import net.minecraft.util.profiling.ProfilerFiller;
 import net.minecraft.world.InteractionResult;
 import net.minecraft.world.inventory.InventoryMenu;
@@ -42,29 +45,79 @@ import static com.gregtechceu.gtceu.api.blockentity.IPaintable.UNPAINTED_COLOR;
 @Mod.EventBusSubscriber(modid = GregTechCables.ID, value = Dist.CLIENT)
 public final class ClientCableNetwork
 {
-	private record Visual(Cable cable, float width, BakedCableMesh mesh, BakedCableMesh outlineMesh)
-	{
-		public static Visual create(Cable cable)
+	private static final class Visual
 		{
-			Vec3 aPos = GRAPH.getConnectorPosition(cable.a);
-			Vec3 bPos = GRAPH.getConnectorPosition(cable.b);
+			private final Cable cable;
+			private final BakedCableMesh mesh;
+			private final BakedCableMesh outlineMesh;
 
-			float width = cable.cableType.thickness();
+			public int highlightColor;
+			public double highlightTimeout;
 
-			return new Visual(
-				cable,
-				width,
-				new BakedCableMesh(
-					new CableGeometry.Mesh(aPos, bPos, width / 2),
-					CableAppearance.get(cable.cableType.id()).sprite()
-				),
-				new BakedCableMesh(
-					new CableGeometry.Mesh(aPos, bPos, width / 2 + 0.015D),
-					null
-				)
-			);
+			private Visual(Cable cable, BakedCableMesh mesh, BakedCableMesh outlineMesh)
+			{
+				this.cable = cable;
+				this.mesh = mesh;
+				this.outlineMesh = outlineMesh;
+			}
+
+			public static Visual create(Cable cable)
+			{
+				Vec3 aPos = GRAPH.getConnectorPosition(cable.a);
+				Vec3 bPos = GRAPH.getConnectorPosition(cable.b);
+
+				float width = cable.cableType.thickness();
+
+				return new Visual(
+					cable,
+					new BakedCableMesh(
+						new CableGeometry.Mesh(aPos, bPos, width / 2),
+						CableAppearance.get(cable.cableType.id()).sprite()
+					),
+					new BakedCableMesh(
+						new CableGeometry.Mesh(aPos, bPos, width / 2 + 0.015D),
+						null
+					)
+				);
+			}
+
+			public Cable cable()
+			{
+				return this.cable;
+			}
+
+			@Override
+			public boolean equals(Object obj)
+			{
+				if (obj == this)
+				{
+					return true;
+				}
+
+				if (obj == null || obj.getClass() != this.getClass())
+				{
+					return false;
+				}
+
+				var that = (Visual) obj;
+
+				return Objects.equals(this.cable, that.cable) &&
+					Objects.equals(this.mesh, that.mesh) &&
+					Objects.equals(this.outlineMesh, that.outlineMesh);
+			}
+
+			@Override
+			public int hashCode()
+			{
+				return this.cable.hashCode();
+			}
+
+			@Override
+			public String toString()
+			{
+				return "Visual[cable=" + this.cable + ']';
+			}
 		}
-	}
 
 	// The render type used to render wires
 	private static final RenderType RENDER_TYPE = RenderType.entityCutout(InventoryMenu.BLOCK_ATLAS);
@@ -87,7 +140,6 @@ public final class ClientCableNetwork
 	// The current dimension that the client information is for
 	private static ResourceLocation dimension;
 
-
 	@SubscribeEvent
 	public static void logout(ClientPlayerNetworkEvent.LoggingOut e)
 	{
@@ -101,6 +153,31 @@ public final class ClientCableNetwork
 		Minecraft mc = Minecraft.getInstance();
 
 		return mc.level != null && mc.player != null && mc.level.dimension().location().equals(dimension);
+	}
+
+	public static CableGraph graph()
+	{
+		return GRAPH;
+	}
+
+	public static ResourceLocation dimension()
+	{
+		return dimension;
+	}
+
+	public static void highlightCable(Cable cable, int color)
+	{
+		Visual visual = CABLE_VISUALS.get(cable);
+
+		if (visual == null)
+		{
+			return;
+		}
+
+		Minecraft mc = Minecraft.getInstance();
+
+		visual.highlightColor = color & 0xFFFFFF;
+		visual.highlightTimeout = (double)mc.level.getGameTime() + mc.getFrameTime() + 10D;
 	}
 
 	public static void useWireCutters(PlayerInteractEvent e)
@@ -178,6 +255,8 @@ public final class ClientCableNetwork
 			int renderDistance = CablesConfig.renderDistance();
 			double radius = renderDistance == 0 ? mc.options.getEffectiveRenderDistance() * 16D : renderDistance;
 
+			double time = (double)mc.level.getGameTime() + mc.getFrameTime();
+
 			// Bounds used for rendering. Note that it has an infinite height.
 			AABB renderBounds = new AABB(camera, camera).inflate(radius, Double.POSITIVE_INFINITY, radius);
 
@@ -191,7 +270,7 @@ public final class ClientCableNetwork
 
 			try
 			{
-				renderCables(event, buffers, renderBounds, poses);
+				renderCables(event, time, buffers, renderBounds, poses);
 			}
 			finally
 			{
@@ -264,6 +343,7 @@ public final class ClientCableNetwork
 
 	private static void renderCables(
 		RenderLevelStageEvent event,
+		double time,
 		MultiBufferSource.BufferSource buffers,
 		AABB renderBounds,
 		PoseStack poses
@@ -292,6 +372,8 @@ public final class ClientCableNetwork
 
 		ClientLevel level = Minecraft.getInstance().level;
 
+		ObjectList<Visual> highlightedVisuals = new ObjectArrayList<>();
+
 		// Finally, render all the cable visuals.
 		for (Visual visual : CABLE_VISUALS.values())
 		{
@@ -311,9 +393,35 @@ public final class ClientCableNetwork
 				true,
 				false
 			);
+
+			if (time < visual.highlightTimeout)
+			{
+				highlightedVisuals.add(visual);
+			}
 		}
 
 		buffers.endBatch(RENDER_TYPE);
+
+		if (!highlightedVisuals.isEmpty())
+		{
+			VertexConsumer outline = buffers.getBuffer(CableHighlight.TYPE);
+
+			for (Visual visual : highlightedVisuals)
+			{
+				int alpha = Mth.clamp((int)((visual.highlightTimeout - time) / 20 / 0.25D * 255), 0, 255);
+
+				visual.outlineMesh.render(
+					outline,
+					poses.last(),
+					null,
+					visual.highlightColor | alpha << 24,
+					false,
+					true
+				);
+			}
+
+			buffers.endBatch(CableHighlight.TYPE);
+		}
 	}
 
 	private static boolean renderHeldItemCableHighlight(
@@ -430,6 +538,34 @@ public final class ClientCableNetwork
 			else if (GRAPH.hasCable(startId, endBlockPos.asLong()))
 			{
 				isValid = false;
+			}
+			else
+			{
+				switch (CablesConfig.cableIntersectionTest())
+				{
+					case LINE ->
+					{
+						if (CableGeometry.lineObstructed(
+							mc.level,
+							GRAPH.getConnectorPosition(start),
+							GRAPH.getConnectorPosition(endBlockPos)
+						))
+						{
+							isValid = false;
+						}
+					}
+					case CABLE ->
+					{
+						if (CableGeometry.cableObstructed(
+							mc.level,
+							GRAPH.getConnectorPosition(start),
+							GRAPH.getConnectorPosition(endBlockPos)
+						))
+						{
+							isValid = false;
+						}
+					}
+				}
 			}
 		}
 		else

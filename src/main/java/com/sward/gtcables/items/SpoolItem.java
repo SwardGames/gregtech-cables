@@ -7,6 +7,7 @@ import com.gregtechceu.gtceu.utils.GTUtil;
 import com.sward.gtcables.CablesConfig;
 import com.sward.gtcables.blocks.ConnectorBlock;
 import com.sward.gtcables.CableType;
+import com.sward.gtcables.graph.CableGeometry;
 import com.sward.gtcables.graph.CableGraph;
 import com.sward.gtcables.graph.CableNetwork;
 import net.minecraft.core.BlockPos;
@@ -54,7 +55,9 @@ public final class SpoolItem extends Item
 
 	public static int length(ItemStack stack)
 	{
-		return stack.hasTag() ? Math.max(0, Math.min(CablesConfig.spoolCapacity(), stack.getTag().getInt("LengthCm"))) : 0;
+		return stack.hasTag()
+			? Math.max(0, Math.min(CablesConfig.spoolCapacity(), stack.getTag().getInt("LengthCm")))
+			: 0;
 	}
 
 	public static ResourceLocation type(ItemStack stack)
@@ -238,7 +241,11 @@ public final class SpoolItem extends Item
 	}
 
 	@Override
-	public @NotNull InteractionResultHolder<ItemStack> use(@NotNull Level level, @NotNull Player player, @NotNull InteractionHand hand)
+	public @NotNull InteractionResultHolder<ItemStack> use(
+		@NotNull Level level,
+		@NotNull Player player,
+		@NotNull InteractionHand hand
+	)
 	{
 		if (!player.isShiftKeyDown())
 		{
@@ -278,7 +285,8 @@ public final class SpoolItem extends Item
 			return InteractionResult.PASS;
 		}
 
-		if (!(player.isShiftKeyDown() || level.getBlockState(context.getClickedPos()).getBlock() instanceof ConnectorBlock))
+		if (!(player.isShiftKeyDown() || level.getBlockState(context.getClickedPos())
+			.getBlock() instanceof ConnectorBlock))
 		{
 			return InteractionResult.PASS;
 		}
@@ -313,7 +321,9 @@ public final class SpoolItem extends Item
 			return InteractionResult.CONSUME;
 		}
 
-		if (length(spool) == 0 || type(spool) == null)
+		ResourceLocation type = type(spool);
+
+		if (length(spool) == 0 || type == null)
 		{
 			if (tag.isEmpty())
 			{
@@ -336,7 +346,9 @@ public final class SpoolItem extends Item
 
 		BlockPos start = BlockPos.of(tag.getLong("Start"));
 
-		if (!CableNetwork.get((ServerLevel) level).hasConnector(start))
+		CableNetwork network = CableNetwork.get((ServerLevel) level);
+
+		if (!network.hasConnector(start))
 		{
 			tag.remove("Start");
 			message(player, "missing_start");
@@ -372,7 +384,7 @@ public final class SpoolItem extends Item
 			return InteractionResult.CONSUME;
 		}
 
-		CableType cableType = CableType.of(type(spool));
+		CableType cableType = CableType.of(type);
 
 		if (cableType == null)
 		{
@@ -381,7 +393,37 @@ public final class SpoolItem extends Item
 			return InteractionResult.CONSUME;
 		}
 
-		if (!CableNetwork.get((ServerLevel) level).connect(start, end, cableType, cm))
+		switch (CablesConfig.cableIntersectionTest())
+		{
+			case LINE ->
+			{
+				if (CableGeometry.lineObstructed(
+					level,
+					network.getConnectorPosition(start),
+					network.getConnectorPosition(end)
+				))
+				{
+					message(player, "cable_obstructed");
+
+					return InteractionResult.CONSUME;
+				}
+			}
+			case CABLE ->
+			{
+				if (CableGeometry.cableObstructed(
+					level,
+					network.getConnectorPosition(start),
+					network.getConnectorPosition(end)
+				))
+				{
+					message(player, "cable_obstructed");
+
+					return InteractionResult.CONSUME;
+				}
+			}
+		}
+
+		if (!network.connect(start, end, cableType, cm))
 		{
 			message(player, "duplicate");
 
