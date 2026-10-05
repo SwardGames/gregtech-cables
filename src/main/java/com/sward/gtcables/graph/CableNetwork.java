@@ -119,7 +119,10 @@ public final class CableNetwork extends SavedData
 		);
 	}
 
-	public CableGraph graph() { return this.graph; }
+	public CableGraph graph()
+	{
+		return this.graph;
+	}
 
 	public boolean hasCable(long id)
 	{
@@ -151,7 +154,10 @@ public final class CableNetwork extends SavedData
 		return this.graph.getConnector(pos.asLong());
 	}
 
-	public Vec3 getConnectorPosition(BlockPos pos) { return this.graph.getConnectorPosition(pos); }
+	public Vec3 getConnectorPosition(BlockPos pos)
+	{
+		return this.graph.getConnectorPosition(pos);
+	}
 
 	public boolean connect(BlockPos a, BlockPos b, CableType cableType, int cm)
 	{
@@ -310,24 +316,32 @@ public final class CableNetwork extends SavedData
 			return;
 		}
 
-		for (long id : this.powered)
-		{
-			Exposure exposure = this.exposures.get(id);
-
-			if (exposure == null)
+		this.graph.forEachCableInBounds(
+			entity.getBoundingBox(),
+			c ->
 			{
-				continue;
-			}
+				if (!this.powered.contains(c.id))
+				{
+					return;
+				}
 
-			long voltage = exposure.activity.voltage(this.level.getGameTime());
-			double amps = exposure.activity.averageAmperage(this.level.getGameTime());
+				Exposure exposure = this.exposures.get(c.id);
 
-			if (voltage > 0 && amps > 0 && exposure.shape.touches(entity.getBoundingBox()))
-			{
-				float damage = (float) ((GTUtil.getTierByVoltage(voltage) + 1) * amps * 4);
-				entity.hurt(GTDamageTypes.ELECTRIC.source(this.level), damage);
+				if (exposure == null)
+				{
+					return;
+				}
+
+				long voltage = exposure.activity.voltage(this.level.getGameTime());
+				double amps = exposure.activity.averageAmperage(this.level.getGameTime());
+
+				if (voltage > 0 && amps > 0 && exposure.shape.touches(entity.getBoundingBox()))
+				{
+					float damage = (float) ((GTUtil.getTierByVoltage(voltage) + 1) * amps * 4);
+					entity.hurt(GTDamageTypes.ELECTRIC.source(this.level), damage);
+				}
 			}
-		}
+		);
 	}
 
 	public List<Cable> attached(BlockPos pos)
@@ -425,7 +439,8 @@ public final class CableNetwork extends SavedData
 
 			Object2ObjectMap<NodeKey, Previous> previous = new Object2ObjectOpenHashMap<>();
 			Object2LongMap<NodeKey> distances = new Object2LongOpenHashMap<>();
-			PriorityQueue<Step> queue = new PriorityQueue<>(Comparator.comparingLong(Step::loss).thenComparing(Step::key));
+			PriorityQueue<Step> queue = new PriorityQueue<>(Comparator.comparingLong(Step::loss)
+				.thenComparing(Step::key));
 
 			NodeKey sourceKey = new NodeKey(sourceConnectorId, sourceSide);
 
