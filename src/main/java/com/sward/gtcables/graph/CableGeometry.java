@@ -484,7 +484,7 @@ public final class CableGeometry
 
 	public static boolean cableIntersects(VoxelShape shape, BlockPos blockPos, Vec3 a, Vec3 b)
 	{
-		AABB blockBounds = shape.bounds().move(blockPos).inflate(1e-7D);
+		AABB blockBounds = new AABB(blockPos).inflate(1e-7D);
 
 		int segments = CableGeometry.segments(a, b);
 

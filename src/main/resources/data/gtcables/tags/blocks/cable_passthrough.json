@@ -2,7 +2,9 @@
 	"replace": false,
 	"values": [
 		"gtcables:connector",
+		"minecraft:iron_bars",
 		"#minecraft:leaves",
-		"#forge:frames"
+		"#forge:frames",
+		"#forge:fences"
 	]
 }
