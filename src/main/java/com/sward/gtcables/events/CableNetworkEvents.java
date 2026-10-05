@@ -103,19 +103,17 @@ public final class CableNetworkEvents
 			return false;
 		}
 
-		VoxelShape shape = state.getCollisionShape(level, pos);
-
-		if (shape.isEmpty())
-		{
-			return false;
-		}
-
-		return getIntersectingCable(CableNetwork.get(level).graph(), shape, pos) != null;
+		return getIntersectingCable(CableNetwork.get(level).graph(), state.getCollisionShape(level, pos), pos) != null;
 	}
 
 	static @Nullable Cable getIntersectingCable(CableGraph graph, VoxelShape shape, BlockPos pos)
 	{
-		final AABB bounds = new AABB(pos);
+		if (shape.isEmpty())
+		{
+			return null;
+		}
+
+		AABB bounds = shape.bounds().move(pos);
 
 		switch (CablesConfig.cableIntersectionTest())
 		{

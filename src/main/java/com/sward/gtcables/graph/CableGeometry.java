@@ -290,6 +290,7 @@ public final class CableGeometry
 
 	/// Returns how many segments are in a cable going from a to b.
 	/// This will be at least 16 to ensure a smooth curve
+	///
 	/// @param a The cable's first point
 	/// @param b The cable's second point
 	/// @return How many segments are in the cable
@@ -299,6 +300,7 @@ public final class CableGeometry
 	}
 
 	/// Finds the position of the cable at the given distance from a to b
+	///
 	/// @param a The cable's first point
 	/// @param b The cable's second point
 	/// @param t The normalized distance from a to b
@@ -324,12 +326,13 @@ public final class CableGeometry
 	}
 
 	/// Calculates the hit distance to the given cable, or infinity if no hit is found
-	/// @param a The cable's first point
-	/// @param b The cable's second point
-	/// @param start The start position
+	///
+	/// @param a         The cable's first point
+	/// @param b         The cable's second point
+	/// @param start     The start position
 	/// @param direction The direction (must be unit)
-	/// @param reach How far to check
-	/// @param radius The radius of the cable
+	/// @param reach     How far to check
+	/// @param radius    The radius of the cable
 	/// @return The hit distance, or infinity if not found
 	public static double hit(Vec3 a, Vec3 b, Vec3 start, Vec3 direction, double reach, double radius)
 	{
@@ -370,8 +373,9 @@ public final class CableGeometry
 	}
 
 	/// Calculates the bounds of the cable connecting the two given points.
-	/// @param a The first point
-	/// @param b The second point
+	///
+	/// @param a       The first point
+	/// @param b       The second point
 	/// @param padding How much padding to give the bounds
 	/// @return The cables bounding box
 	public static AABB bounds(Vec3 a, Vec3 b, double padding)
@@ -380,12 +384,13 @@ public final class CableGeometry
 	}
 
 	/// Calculates the bounds of the cable connecting the two given points.
-	/// @param ax The first point's x coordinate
-	/// @param ay The first point's y coordinate
-	/// @param az The first point's z coordinate
-	/// @param bx The second point's x coordinate
-	/// @param by The second point's y coordinate
-	/// @param bz The second point's z coordinate
+	///
+	/// @param ax      The first point's x coordinate
+	/// @param ay      The first point's y coordinate
+	/// @param az      The first point's z coordinate
+	/// @param bx      The second point's x coordinate
+	/// @param by      The second point's y coordinate
+	/// @param bz      The second point's z coordinate
 	/// @param padding How much padding to give the bounds
 	/// @return The cables bounding box
 	public static AABB bounds(double ax, double ay, double az, double bx, double by, double bz, double padding)
@@ -426,9 +431,10 @@ public final class CableGeometry
 	}
 
 	/// Determines if the line between the two points would intersect any blocks not tagged 'gtcables:cable_passthrough'
+	///
 	/// @param level The level the cable is in
-	/// @param a The first point
-	/// @param b The second point
+	/// @param a     The first point
+	/// @param b     The second point
 	/// @return If the cable hits a block
 	public static boolean lineObstructed(Level level, Vec3 a, Vec3 b)
 	{
@@ -450,9 +456,10 @@ public final class CableGeometry
 	}
 
 	/// Determines if a cable connecting two points would intersect any blocks not tagged 'gtcables:cable_passthrough'
+	///
 	/// @param level The level the cable is in
-	/// @param a The first connector position
-	/// @param b The second connector position
+	/// @param a     The first connector position
+	/// @param b     The second connector position
 	/// @return If the cable hits a block
 	public static boolean cableObstructed(Level level, Vec3 a, Vec3 b)
 	{
@@ -477,7 +484,7 @@ public final class CableGeometry
 
 	public static boolean cableIntersects(VoxelShape shape, BlockPos blockPos, Vec3 a, Vec3 b)
 	{
-		AABB blockBounds = new AABB(blockPos);
+		AABB blockBounds = shape.bounds().move(blockPos).inflate(1e-7D);
 
 		int segments = CableGeometry.segments(a, b);
 

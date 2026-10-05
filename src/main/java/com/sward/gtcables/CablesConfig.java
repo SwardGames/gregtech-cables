@@ -25,7 +25,7 @@ public class CablesConfig
 			this.spoolCapacity = builder
 				.translation("config.gtcables.spool_max_capacity")
 				.comment("How much cable a spool can hold (in meters)")
-				.defineInRange("spool_max_capacity", 256, 1, Integer.MAX_VALUE);
+				.defineInRange("spool_max_capacity", 256, 1, 10000000);
 
 			this.connectionMaxLength = builder
 				.translation("config.gtcables.connection_max_length")

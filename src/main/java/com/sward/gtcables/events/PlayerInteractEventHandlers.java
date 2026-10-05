@@ -74,9 +74,11 @@ public class PlayerInteractEventHandlers
 			return;
 		}
 
-		VoxelShape shape = state.getCollisionShape(e.getLevel(), pos);
-
-		Cable intersectingCable = CableNetworkEvents.getIntersectingCable(ClientCableNetwork.graph(), shape, pos);
+		Cable intersectingCable = CableNetworkEvents.getIntersectingCable(
+			ClientCableNetwork.graph(),
+			state.getCollisionShape(e.getLevel(), pos),
+			pos
+		);
 
 		if (intersectingCable != null)
 		{
