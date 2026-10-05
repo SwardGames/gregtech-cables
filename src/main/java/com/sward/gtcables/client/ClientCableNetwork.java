@@ -261,8 +261,6 @@ public final class ClientCableNetwork
 			AABB renderBounds = new AABB(camera, camera).inflate(radius, Double.POSITIVE_INFINITY, radius);
 
 			PoseStack poses = event.getPoseStack();
-			poses.pushPose();
-			poses.translate(-camera.x, -camera.y, -camera.z);
 
 			MultiBufferSource.BufferSource buffers = mc.renderBuffers().bufferSource();
 
@@ -270,7 +268,7 @@ public final class ClientCableNetwork
 
 			try
 			{
-				renderCables(event, time, buffers, renderBounds, poses);
+				renderCables(event, time, buffers, camera, renderBounds, poses);
 			}
 			finally
 			{
@@ -292,9 +290,9 @@ public final class ClientCableNetwork
 
 					if (visual != null)
 					{
-						if (!renderHeldItemCableHighlight(visual, mainHandItem, buffers, poses))
+						if (!renderHeldItemCableHighlight(visual, mainHandItem, buffers, camera, poses))
 						{
-							renderHeldItemCableHighlight(visual, offHandItem, buffers, poses);
+							renderHeldItemCableHighlight(visual, offHandItem, buffers, camera, poses);
 						}
 					}
 				}
@@ -310,20 +308,18 @@ public final class ClientCableNetwork
 			{
 				if (CableTools.isSpool(mainHandItem, false))
 				{
-					visualizeSpool(mainHandItem, mc, buffers, poses);
+					visualizeSpool(mainHandItem, mc, buffers, camera, poses);
 				}
 
 				if (CableTools.isSpool(offHandItem, false))
 				{
-					visualizeSpool(offHandItem, mc, buffers, poses);
+					visualizeSpool(offHandItem, mc, buffers, camera, poses);
 				}
 			}
 			finally
 			{
 				profiler.pop();
 			}
-
-			poses.popPose();
 		}
 		finally
 		{
@@ -345,6 +341,7 @@ public final class ClientCableNetwork
 		RenderLevelStageEvent event,
 		double time,
 		MultiBufferSource.BufferSource buffers,
+		Vec3 camera,
 		AABB renderBounds,
 		PoseStack poses
 	)
@@ -387,8 +384,9 @@ public final class ClientCableNetwork
 
 			visual.mesh.render(
 				out,
-				poses.last(),
+				poses,
 				level,
+				camera,
 				(cable.color != UNPAINTED_COLOR) ? cable.color : appearance.color(),
 				true,
 				false
@@ -412,8 +410,9 @@ public final class ClientCableNetwork
 
 				visual.outlineMesh.render(
 					outline,
-					poses.last(),
+					poses,
 					null,
+					camera,
 					visual.highlightColor | alpha << 24,
 					false,
 					true
@@ -428,6 +427,7 @@ public final class ClientCableNetwork
 		Visual visual,
 		ItemStack stack,
 		MultiBufferSource.BufferSource buffers,
+		Vec3 camera,
 		PoseStack poses
 	)
 	{
@@ -437,8 +437,9 @@ public final class ClientCableNetwork
 
 			visual.outlineMesh.render(
 				outline,
-				poses.last(),
+				poses,
 				null,
+				camera,
 				0xFFFFFFFF,
 				false,
 				true
@@ -457,8 +458,9 @@ public final class ClientCableNetwork
 
 			visual.outlineMesh.render(
 				outline,
-				poses.last(),
+				poses,
 				null,
+				camera,
 				spray.left == null ? 0x7FBFBFBF : (spray.left.getMapColor().col | 0xFF000000),
 				false,
 				true
@@ -476,6 +478,7 @@ public final class ClientCableNetwork
 		ItemStack mainHandItem,
 		Minecraft mc,
 		MultiBufferSource.BufferSource buffers,
+		Vec3 camera,
 		PoseStack poses
 	)
 	{
@@ -598,8 +601,9 @@ public final class ClientCableNetwork
 
 			mesh.render(
 				outline,
-				poses.last(),
+				poses,
 				null,
+				camera,
 				isValid ? hasConnector ? GREEN : WHITE : RED,
 				false,
 				false

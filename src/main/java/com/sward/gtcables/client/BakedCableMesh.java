@@ -21,6 +21,8 @@ import org.jetbrains.annotations.Nullable;
 
 public class BakedCableMesh
 {
+	private final Vec3 origin;
+
 	private final int vertexCount;
 	private final float[] vertexData;
 	private final float[] uvData;
@@ -39,6 +41,8 @@ public class BakedCableMesh
 		double radius = 16 * mesh.radius;
 
 		int ringCount = mesh.size() - 1;
+
+		this.origin = mesh.centre(0);
 
 		for (int ring = 0; ring < ringCount; ring++)
 		{
@@ -78,9 +82,9 @@ public class BakedCableMesh
 					Vec3 n1 = mesh.normal(ring, face).lerp(mesh.normal(ring + 1, face), t1).normalize();
 
 					// a
-					vertexData.add((float)a.x);
-					vertexData.add((float)a.y);
-					vertexData.add((float)a.z);
+					vertexData.add((float)(a.x - this.origin.x));
+					vertexData.add((float)(a.y - this.origin.y));
+					vertexData.add((float)(a.z - this.origin.z));
 
 					uvData.add(u0);
 					uvData.add(v0);
@@ -90,9 +94,9 @@ public class BakedCableMesh
 					normalData.add((float)n0.z);
 
 					// b
-					vertexData.add((float)b.x);
-					vertexData.add((float)b.y);
-					vertexData.add((float)b.z);
+					vertexData.add((float)(b.x - this.origin.x));
+					vertexData.add((float)(b.y - this.origin.y));
+					vertexData.add((float)(b.z - this.origin.z));
 
 					uvData.add(u1);
 					uvData.add(v0);
@@ -102,9 +106,9 @@ public class BakedCableMesh
 					normalData.add((float)n0.z);
 
 					// c
-					vertexData.add((float)c.x);
-					vertexData.add((float)c.y);
-					vertexData.add((float)c.z);
+					vertexData.add((float)(c.x - this.origin.x));
+					vertexData.add((float)(c.y - this.origin.y));
+					vertexData.add((float)(c.z - this.origin.z));
 
 					uvData.add(u1);
 					uvData.add(v1);
@@ -114,9 +118,9 @@ public class BakedCableMesh
 					normalData.add((float)n1.z);
 
 					// d
-					vertexData.add((float)d.x);
-					vertexData.add((float)d.y);
-					vertexData.add((float)d.z);
+					vertexData.add((float)(d.x - this.origin.x));
+					vertexData.add((float)(d.y - this.origin.y));
+					vertexData.add((float)(d.z - this.origin.z));
 
 					uvData.add(u0);
 					uvData.add(v1);
@@ -149,45 +153,71 @@ public class BakedCableMesh
 		this.bounds = mesh.bounds;
 	}
 
-	public void render(VertexConsumer out, PoseStack.Pose pose, ClientLevel level, int color, boolean textured, boolean inverted)
+	public void render(VertexConsumer out, PoseStack poses, ClientLevel level, Vec3 camera, int color, boolean textured, boolean inverted)
 	{
 		final int r = FastColor.ARGB32.red(color);
 		final int g = FastColor.ARGB32.green(color);
 		final int b = FastColor.ARGB32.blue(color);
 		final int a = FastColor.ARGB32.alpha(color);
 
-		if (textured)
+		poses.pushPose();
+
+		try
 		{
-			BlockPos.MutableBlockPos pos = new BlockPos.MutableBlockPos(Integer.MIN_VALUE, Integer.MIN_VALUE, Integer.MIN_VALUE);
-			int light = 0;
+			poses.translate(this.origin.x - camera.x, this.origin.y - camera.y, this.origin.z - camera.z);
 
-			for (int i = 0; i < this.vertexCount / 16; ++i)
+			PoseStack.Pose pose = poses.last();
+
+			if (textured)
 			{
-				int posX = this.ringPosData[i * 3 + 0];
-				int posY = this.ringPosData[i * 3 + 1];
-				int posZ = this.ringPosData[i * 3 + 2];
+				BlockPos.MutableBlockPos pos = new BlockPos.MutableBlockPos(Integer.MIN_VALUE, Integer.MIN_VALUE, Integer.MIN_VALUE);
+				int light = 0;
 
-				if (pos.getX() != posX || pos.getY() != posY || pos.getZ() != posZ)
+				for (int i = 0; i < this.vertexCount / 16; ++i)
 				{
-					pos.setX(posX);
-					pos.setY(posY);
-					pos.setZ(posZ);
+					int posX = this.ringPosData[i * 3 + 0];
+					int posY = this.ringPosData[i * 3 + 1];
+					int posZ = this.ringPosData[i * 3 + 2];
 
-					light = LevelRenderer.getLightColor(level, pos);
-				}
-
-				for (int j = 0; j < 4; ++j)
-				{
-					for (int k = 0; k < 4; ++k)
+					if (pos.getX() != posX || pos.getY() != posY || pos.getZ() != posZ)
 					{
-						int v = i * 16 + j * 4 + (inverted ? 3 - k : k);
+						pos.setX(posX);
+						pos.setY(posY);
+						pos.setZ(posZ);
+
+						light = LevelRenderer.getLightColor(level, pos);
+					}
+
+					for (int j = 0; j < 4; ++j)
+					{
+						for (int k = 0; k < 4; ++k)
+						{
+							int v = i * 16 + j * 4 + (inverted ? 3 - k : k);
+
+							out.vertex(pose.pose(), this.vertexData[v * 3 + 0],
+									this.vertexData[v * 3 + 1], this.vertexData[v * 3 + 2])
+								.color(r, g, b, a)
+								.uv(this.uvData[v * 2 + 0], this.uvData[v * 2 + 1])
+								.overlayCoords(OverlayTexture.NO_OVERLAY)
+								.uv2(light)
+								.normal(pose.normal(), this.normalData[v * 3 + 0],
+									this.normalData[v * 3 + 1], this.normalData[v * 3 + 2])
+								.endVertex();
+						}
+					}
+				}
+			}
+			else
+			{
+				for (int i = 0; i < this.vertexCount / 4; ++i)
+				{
+					for (int j = 0; j < 4; ++j)
+					{
+						int v = i * 4 + (inverted ? 3 - j : j);
 
 						out.vertex(pose.pose(), this.vertexData[v * 3 + 0],
 								this.vertexData[v * 3 + 1], this.vertexData[v * 3 + 2])
 							.color(r, g, b, a)
-							.uv(this.uvData[v * 2 + 0], this.uvData[v * 2 + 1])
-							.overlayCoords(OverlayTexture.NO_OVERLAY)
-							.uv2(light)
 							.normal(pose.normal(), this.normalData[v * 3 + 0],
 								this.normalData[v * 3 + 1], this.normalData[v * 3 + 2])
 							.endVertex();
@@ -195,22 +225,9 @@ public class BakedCableMesh
 				}
 			}
 		}
-		else
+		finally
 		{
-			for (int i = 0; i < this.vertexCount / 4; ++i)
-			{
-				for (int j = 0; j < 4; ++j)
-				{
-					int v = i * 4 + (inverted ? 3 - j : j);
-
-					out.vertex(pose.pose(), this.vertexData[v * 3 + 0],
-							this.vertexData[v * 3 + 1], this.vertexData[v * 3 + 2])
-						.color(r, g, b, a)
-						.normal(pose.normal(), this.normalData[v * 3 + 0],
-							this.normalData[v * 3 + 1], this.normalData[v * 3 + 2])
-						.endVertex();
-				}
-			}
+			poses.popPose();
 		}
 	}
 
