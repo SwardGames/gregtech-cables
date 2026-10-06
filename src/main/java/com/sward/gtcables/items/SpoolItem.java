@@ -490,7 +490,8 @@ public final class SpoolItem extends Item
 	{
 		tooltip.add(Component.translatable(
 			"tooltip.gtcables.length",
-			String.format(java.util.Locale.ROOT, "%.2f", length(stack) / 100D)
+			String.format(java.util.Locale.ROOT, "%.2f", length(stack) / 100D),
+			String.format(java.util.Locale.ROOT, "%.2f", CablesConfig.spoolCapacity() / 100D)
 		));
 
 		ResourceLocation id = type(stack);

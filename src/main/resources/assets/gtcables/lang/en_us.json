@@ -4,7 +4,7 @@
 
   "block.gtcables.connector":"Wire Connector",
 
-  "tooltip.gtcables.length":"%s / 256.00 m",
+  "tooltip.gtcables.length":"%s / %s m",
   "tooltip.gtcables.loss_per_block": "§cLoss/Centimeter/Ampere:§r §c%d§7 mEU-Volt",
   "tooltip.gtcables.selected":"Starting connector: %s (sneak-click to clear)",
 

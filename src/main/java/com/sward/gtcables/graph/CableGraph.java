@@ -71,6 +71,11 @@ public final class CableGraph
 		return Math.max(1, (int) Math.ceil(length - 1e-9D));
 	}
 
+	public static Vec3 getConnectorOffset(Direction direction)
+	{
+		return CONNECTOR_OFFSETS[direction.ordinal()];
+	}
+
 	public Collection<Cable> cables()
 	{
 		return Collections.unmodifiableCollection(this.cables.values());
@@ -102,24 +107,9 @@ public final class CableGraph
 		{
 			pos = pos.add(CONNECTOR_OFFSETS[connector.ordinal()]);
 		}
-		else
-		{
-			ClientLevel level = Minecraft.getInstance().level;
-
-			if (level != null && level.isLoaded(blockPos))
-			{
-				BlockState blockState = level.getBlockState(blockPos);
-
-				if (blockState.is(GregTechCables.CONNECTOR.get()))
-				{
-					pos = pos.add(CONNECTOR_OFFSETS[blockState.getValue(ConnectorBlock.FACING).getOpposite().ordinal()]);
-				}
-			}
-		}
 
 		return pos;
 	}
-
 
 	public Map<Long, Direction> connectors()
 	{
