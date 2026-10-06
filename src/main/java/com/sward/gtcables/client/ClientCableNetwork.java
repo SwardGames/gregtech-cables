@@ -17,6 +17,7 @@ import net.minecraft.client.Minecraft;
 import net.minecraft.client.multiplayer.ClientLevel;
 import net.minecraft.client.renderer.*;
 import net.minecraft.core.BlockPos;
+import net.minecraft.core.Direction;
 import net.minecraft.core.particles.ParticleTypes;
 import net.minecraft.nbt.CompoundTag;
 import net.minecraft.resources.ResourceLocation;
@@ -308,12 +309,12 @@ public final class ClientCableNetwork
 			{
 				if (CableTools.isSpool(mainHandItem, false))
 				{
-					visualizeSpool(mainHandItem, mc, buffers, camera, poses);
+					visualizeSpoolConnection(mainHandItem, mc, buffers, camera, poses);
 				}
 
 				if (CableTools.isSpool(offHandItem, false))
 				{
-					visualizeSpool(offHandItem, mc, buffers, camera, poses);
+					visualizeSpoolConnection(offHandItem, mc, buffers, camera, poses);
 				}
 			}
 			finally
@@ -474,7 +475,7 @@ public final class ClientCableNetwork
 		return false;
 	}
 
-	private static void visualizeSpool(
+	private static void visualizeSpoolConnection(
 		ItemStack mainHandItem,
 		Minecraft mc,
 		MultiBufferSource.BufferSource buffers,
@@ -672,9 +673,12 @@ public final class ClientCableNetwork
 
 	public static void syncGraph(SyncGraphPacket packet)
 	{
-		GRAPH.clear();
-		CABLE_VISUALS.clear();
-		dimension = packet.dimension();
+		if (packet.replace() || !packet.dimension().equals(dimension))
+		{
+			GRAPH.clear();
+			CABLE_VISUALS.clear();
+			dimension = packet.dimension();
+		}
 
 		for (SyncGraphPacket.ConnectorData node : packet.connectors())
 		{
@@ -716,6 +720,8 @@ public final class ClientCableNetwork
 			return;
 		}
 
+		addConnector(packet.a(), packet.aDirection());
+		addConnector(packet.b(), packet.bDirection());
 		addCable(packet.id(), packet.a(), packet.b(), packet.wireType(), packet.color());
 	}
 
@@ -767,6 +773,11 @@ public final class ClientCableNetwork
 		Cable cable = GRAPH.getCable(packet.id());
 
 		cable.color = packet.color();
+	}
+
+	public static void addConnector(BlockPos pos, @NotNull Direction direction)
+	{
+		GRAPH.addConnector(pos.asLong(), direction);
 	}
 
 	private static void addCable(long id, BlockPos a, BlockPos b, ResourceLocation wireType, int color)

@@ -1,18 +1,24 @@
 package com.sward.gtcables.graph;
 
 import com.sward.gtcables.CableType;
+import com.sward.gtcables.GregTechCables;
+import com.sward.gtcables.blocks.ConnectorBlock;
 import com.sward.gtcables.util.PlayerHelper;
 import it.unimi.dsi.fastutil.longs.Long2ObjectMap;
 import it.unimi.dsi.fastutil.longs.Long2ObjectOpenHashMap;
 import it.unimi.dsi.fastutil.longs.LongOpenHashSet;
 import it.unimi.dsi.fastutil.longs.LongSet;
 import net.minecraft.MethodsReturnNonnullByDefault;
+import net.minecraft.client.Minecraft;
+import net.minecraft.client.multiplayer.ClientLevel;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
 import net.minecraft.core.SectionPos;
 import net.minecraft.util.Mth;
 import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.level.BlockGetter;
+import net.minecraft.world.level.ChunkPos;
+import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.world.phys.AABB;
 import net.minecraft.world.phys.Vec3;
 import org.jetbrains.annotations.NotNull;
@@ -95,6 +101,20 @@ public final class CableGraph
 		if (connector != null)
 		{
 			pos = pos.add(CONNECTOR_OFFSETS[connector.ordinal()]);
+		}
+		else
+		{
+			ClientLevel level = Minecraft.getInstance().level;
+
+			if (level != null && level.isLoaded(blockPos))
+			{
+				BlockState blockState = level.getBlockState(blockPos);
+
+				if (blockState.is(GregTechCables.CONNECTOR.get()))
+				{
+					pos = pos.add(CONNECTOR_OFFSETS[blockState.getValue(ConnectorBlock.FACING).getOpposite().ordinal()]);
+				}
+			}
 		}
 
 		return pos;
@@ -254,13 +274,13 @@ public final class CableGraph
 		int chunkZ0 = SectionPos.posToSectionCoord(Mth.floor(bounds.minZ));
 		int chunkZ1 = SectionPos.posToSectionCoord(Mth.ceil(bounds.maxZ));
 
-		Set<Cable> checkedCables = new HashSet<>();
+		LongSet checkedCables = new LongOpenHashSet();
 
 		for (int chunkX = chunkX0; chunkX <= chunkX1; ++chunkX)
 		{
 			for (int chunkZ = chunkZ0; chunkZ <= chunkZ1; ++chunkZ)
 			{
-				Set<Cable> cables = this.chunkCables.get(getChunkId(chunkX, chunkZ));
+				Set<Cable> cables = this.chunkCables.get(ChunkPos.asLong(chunkX, chunkZ));
 
 				if (cables == null)
 				{
@@ -269,7 +289,38 @@ public final class CableGraph
 
 				for (Cable cable : cables)
 				{
-					if (checkedCables.add(cable) && cable.bounds.intersects(bounds))
+					if (checkedCables.add(cable.id) && cable.bounds.intersects(bounds))
+					{
+						cableConsumer.accept(cable);
+					}
+				}
+			}
+		}
+	}
+
+	public void forEachCableInChunks(int x, int z, int radius, Consumer<@NotNull Cable> cableConsumer)
+	{
+		int chunkX0 = x - radius;
+		int chunkX1 = x + radius;
+		int chunkZ0 = z - radius;
+		int chunkZ1 = z + radius;
+
+		LongSet checkedCables = new LongOpenHashSet();
+
+		for (int chunkX = chunkX0; chunkX <= chunkX1; ++chunkX)
+		{
+			for (int chunkZ = chunkZ0; chunkZ <= chunkZ1; ++chunkZ)
+			{
+				Set<Cable> cables = this.chunkCables.get(ChunkPos.asLong(chunkX, chunkZ));
+
+				if (cables == null)
+				{
+					continue;
+				}
+
+				for (Cable cable : cables)
+				{
+					if (checkedCables.add(cable.id))
 					{
 						cableConsumer.accept(cable);
 					}
@@ -285,13 +336,13 @@ public final class CableGraph
 		int chunkZ0 = SectionPos.posToSectionCoord(Mth.floor(bounds.minZ));
 		int chunkZ1 = SectionPos.posToSectionCoord(Mth.ceil(bounds.maxZ));
 
-		Set<Cable> checkedCables = new HashSet<>();
+		LongSet checkedCables = new LongOpenHashSet();
 
 		for (int chunkX = chunkX0; chunkX <= chunkX1; ++chunkX)
 		{
 			for (int chunkZ = chunkZ0; chunkZ <= chunkZ1; ++chunkZ)
 			{
-				Set<Cable> cables = this.chunkCables.get(getChunkId(chunkX, chunkZ));
+				Set<Cable> cables = this.chunkCables.get(ChunkPos.asLong(chunkX, chunkZ));
 
 				if (cables == null)
 				{
@@ -300,7 +351,7 @@ public final class CableGraph
 
 				for (Cable cable : cables)
 				{
-					if (checkedCables.add(cable) && cable.bounds.intersects(bounds))
+					if (checkedCables.add(cable.id) && cable.bounds.intersects(bounds))
 					{
 						if (predicate.test(cable))
 						{
@@ -354,11 +405,6 @@ public final class CableGraph
 		return clip(player.getEyePosition(), player.getLookAngle(), PlayerHelper.unobstructedReach(player));
 	}
 
-	private static long getChunkId(int chunkX, int chunkZ)
-	{
-		return ((long) chunkZ << 32) | Integer.toUnsignedLong(chunkX);
-	}
-
 	private static long[] crossedChunks(Vec3 a, Vec3 b)
 	{
 		LongSet chunks = new LongOpenHashSet();
@@ -407,7 +453,7 @@ public final class CableGraph
 
 				if (bounds.contains(a) || bounds.contains(b) || bounds.clip(a, b).isPresent())
 				{
-					chunks.add(getChunkId(x, z));
+					chunks.add(ChunkPos.asLong(x, z));
 				}
 			}
 		}

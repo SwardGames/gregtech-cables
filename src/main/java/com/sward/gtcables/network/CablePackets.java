@@ -10,11 +10,13 @@ import net.minecraftforge.network.simple.SimpleChannel;
 
 public final class CablePackets
 {
+	private static final String VERSION = "2";
+
 	public static final SimpleChannel CHANNEL = NetworkRegistry.newSimpleChannel(
 		GregTechCables.id("wires"),
-		() -> "1",
-		"1"::equals,
-		"1"::equals
+		() -> VERSION,
+		VERSION::equals,
+		VERSION::equals
 	);
 
 	public static void init()

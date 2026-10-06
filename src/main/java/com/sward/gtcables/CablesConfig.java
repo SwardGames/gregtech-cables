@@ -20,6 +20,8 @@ public class CablesConfig
 
 		public final ForgeConfigSpec.EnumValue<CableIntersectionTest> cableIntersectionTest;
 
+		public final ForgeConfigSpec.IntValue playerSyncDistance;
+
 		public Server(ForgeConfigSpec.Builder builder)
 		{
 			this.spoolCapacity = builder
@@ -50,6 +52,11 @@ public class CablesConfig
 					"This setting will not be applied retroactively."
 				)
 				.defineEnum("cable_intersection_test", CableIntersectionTest.CABLE);
+
+			this.playerSyncDistance = builder
+				.translation("config.gtcables.player_sync_distance")
+				.comment("The distance (in chunks) that a player will be notified of a cables existence.")
+				.defineInRange("player_sync_distance", 12, 8, 256);
 		}
 	}
 
@@ -97,6 +104,11 @@ public class CablesConfig
 	public static CableIntersectionTest cableIntersectionTest()
 	{
 		return SERVER.cableIntersectionTest.get();
+	}
+
+	public static int playerSyncDistance()
+	{
+		return SERVER.playerSyncDistance.get();
 	}
 
 	static final ForgeConfigSpec CLIENT_SPEC;

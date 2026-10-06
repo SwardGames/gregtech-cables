@@ -13,9 +13,8 @@ import com.gregtechceu.gtceu.common.pipelike.cable.EnergyRoutePath;
 import com.gregtechceu.gtceu.utils.GTUtil;
 import com.sward.gtcables.*;
 import com.sward.gtcables.blocks.ConnectorEntity;
+import com.sward.gtcables.events.CableNetworkSynchronization;
 import com.sward.gtcables.items.SpoolItem;
-import com.sward.gtcables.network.CablePackets;
-import com.sward.gtcables.network.clientbound.*;
 import it.unimi.dsi.fastutil.ints.*;
 import it.unimi.dsi.fastutil.longs.*;
 import it.unimi.dsi.fastutil.objects.*;
@@ -38,7 +37,6 @@ import net.minecraft.world.level.block.Block;
 import net.minecraft.world.level.saveddata.SavedData;
 import net.minecraft.world.phys.Vec3;
 import net.minecraftforge.event.entity.player.PlayerInteractEvent;
-import net.minecraftforge.network.PacketDistributor;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 
@@ -355,10 +353,7 @@ public final class CableNetwork extends SavedData
 
 		if (this.graph.addConnector(id, facing))
 		{
-			CablePackets.CHANNEL.send(
-				PacketDistributor.DIMENSION.with(this.level::dimension),
-				new AddConnectorPacket(this.level.dimension().location(), id, facing)
-			);
+			CableNetworkSynchronization.broadcastConnectorAdded(this.level, this, id, facing);
 		}
 	}
 
@@ -388,10 +383,7 @@ public final class CableNetwork extends SavedData
 			}
 		}
 
-		CablePackets.CHANNEL.send(
-			PacketDistributor.DIMENSION.with(this.level::dimension),
-			new RemoveConnectorPacket(this.level.dimension().location(), id)
-		);
+		CableNetworkSynchronization.broadcastConnectorRemoved(this.level, this, id);
 	}
 
 	public long transfer(BlockPos connector, long voltage, long amps)
@@ -1029,43 +1021,19 @@ public final class CableNetwork extends SavedData
 
 		setDirty();
 
-		CablePackets.CHANNEL.send(
-			PacketDistributor.DIMENSION.with(level::dimension),
-			new CableColorChangedPacket(level.dimension().location(), cable.id, rgb)
-		);
+		CableNetworkSynchronization.broadcastCablePainted(this.level, this, cable, rgb);
 
 		behaviour.useItemDurability(player, e.getHand(), e.getItemStack(), GTItems.SPRAY_EMPTY.asStack());
 	}
 
 	private void broadcastCableAdded(Cable cable)
 	{
-		CablePackets.CHANNEL.send(
-			PacketDistributor.DIMENSION.with(this.level::dimension),
-			new AddCablePacket(
-				this.level.dimension().location(),
-				cable.id,
-				cable.a,
-				cable.b,
-				cable.cableType.id(),
-				cable.color
-			)
-		);
+		CableNetworkSynchronization.broadcastCableAdded(this.level, this, cable);
 	}
 
 	private void broadcastCableRemoved(Cable cable, boolean burned)
 	{
-		CablePackets.CHANNEL.send(
-			PacketDistributor.DIMENSION.with(this.level::dimension),
-			new RemoveCablePacket(this.level.dimension().location(), cable.id, burned)
-		);
-	}
-
-	public void sync(ServerPlayer player)
-	{
-		CablePackets.CHANNEL.send(
-			PacketDistributor.PLAYER.with(() -> player),
-			SyncGraphPacket.create(this.level, this.graph.connectors(), this.graph.cables())
-		);
+		CableNetworkSynchronization.broadcastCableRemoved(this.level, this, cable, burned);
 	}
 
 	@Override
