@@ -390,7 +390,7 @@ public final class ClientCableNetwork
 				poses,
 				level,
 				camera,
-				(cable.color != UNPAINTED_COLOR) ? cable.color : appearance.color(),
+				((cable.color != UNPAINTED_COLOR) ? cable.color : appearance.color()) | 0xFF000000,
 				true,
 				false
 			);

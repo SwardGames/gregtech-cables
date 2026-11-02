@@ -146,6 +146,7 @@ dependencies {
     compileOnly fg.deobf('curse.maven:jade-324717:5390389')
     if (!project.hasProperty('withoutJade')) runtimeOnly fg.deobf('curse.maven:jade-324717:5390389')
     runtimeOnly(fg.deobf('mezz.jei:jei-1.20.1-forge:15.20.0.115')) { transitive = false }
+    runtimeOnly fg.deobf('curse.maven:embeddium-908741:5681725')
 }
 
 // LDLib publishes optional integrations as dependencies. ForgeGradle resolves
