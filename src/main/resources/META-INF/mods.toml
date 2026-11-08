@@ -28,6 +28,6 @@ side="BOTH"
 [[dependencies.${mod_id}]]
 modId="gtceu"
 mandatory=true
-versionRange="[1.0.0,8)"
+versionRange="${gtceu_version_range}"
 ordering="AFTER"
 side="BOTH"

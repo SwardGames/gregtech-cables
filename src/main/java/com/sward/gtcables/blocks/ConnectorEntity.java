@@ -1,8 +1,8 @@
 package com.sward.gtcables.blocks;
 
 import com.gregtechceu.gtceu.api.blockentity.IPaintable;
+import com.gregtechceu.gtceu.api.capability.GTCapability;
 import com.gregtechceu.gtceu.api.capability.IEnergyContainer;
-import com.gregtechceu.gtceu.api.capability.forge.GTCapability;
 import com.sward.gtcables.GregTechCables;
 import com.sward.gtcables.graph.CableNetwork;
 import net.minecraft.core.*;

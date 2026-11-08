@@ -1,12 +1,12 @@
 package com.sward.gtcables.graph;
 
+import com.gregtechceu.gtceu.api.capability.GTCapability;
 import com.gregtechceu.gtceu.api.capability.IEnergyContainer;
-import com.gregtechceu.gtceu.api.capability.forge.GTCapability;
 import com.gregtechceu.gtceu.api.item.tool.ToolHelper;
 import com.gregtechceu.gtceu.common.blockentity.CableBlockEntity;
 import com.gregtechceu.gtceu.common.data.GTDamageTypes;
 import com.gregtechceu.gtceu.common.data.GTItems;
-import com.gregtechceu.gtceu.common.item.ColorSprayBehaviour;
+import com.gregtechceu.gtceu.common.item.behavior.ColorSprayBehaviour;
 import com.gregtechceu.gtceu.common.pipelike.cable.EnergyNet;
 import com.gregtechceu.gtceu.common.pipelike.cable.EnergyNetHandler;
 import com.gregtechceu.gtceu.common.pipelike.cable.EnergyRoutePath;
@@ -621,7 +621,7 @@ public final class CableNetwork extends SavedData
 										c.applyHeat(voltageHeat(voltage, wireVoltage));
 									}
 
-									routeInvalid |= c.isInValid();
+									routeInvalid |= c.isRemoved();
 								}
 							}
 						}
@@ -743,13 +743,13 @@ public final class CableNetwork extends SavedData
 								{
 									travelledLoss += (long) c.getNodeData().getLossPerBlock() * 100;
 
-									if (c.isInValid())
+									if (c.isRemoved())
 									{
 										routeInvalid = true;
 									}
 									else
 									{
-										routeInvalid |= c.isInValid();
+										routeInvalid |= c.isRemoved();
 									}
 								}
 							}
@@ -790,7 +790,7 @@ public final class CableNetwork extends SavedData
 							{
 								travelledLoss += (long) c.getNodeData().getLossPerBlock() * 100;
 
-								if (!c.isInValid())
+								if (!c.isRemoved())
 								{
 									c.incrementAmperage(ampsApplied, voltage - roundedLoss(travelledLoss));
 								}

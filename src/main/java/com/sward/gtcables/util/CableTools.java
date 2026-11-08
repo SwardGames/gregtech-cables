@@ -3,7 +3,7 @@ package com.sward.gtcables.util;
 import com.gregtechceu.gtceu.api.item.ComponentItem;
 import com.gregtechceu.gtceu.api.item.component.IItemComponent;
 import com.gregtechceu.gtceu.common.data.GTItems;
-import com.gregtechceu.gtceu.common.item.ColorSprayBehaviour;
+import com.gregtechceu.gtceu.common.item.behavior.ColorSprayBehaviour;
 import com.sward.gtcables.GregTechCables;
 import com.sward.gtcables.items.SpoolItem;
 import net.minecraft.core.registries.Registries;

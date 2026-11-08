@@ -1,6 +1,6 @@
 package com.sward.gtcables.events;
 
-import com.gregtechceu.gtceu.common.item.ColorSprayBehaviour;
+import com.gregtechceu.gtceu.common.item.behavior.ColorSprayBehaviour;
 import com.sward.gtcables.GregTechCables;
 import com.sward.gtcables.client.ClientCableNetwork;
 import com.sward.gtcables.graph.Cable;

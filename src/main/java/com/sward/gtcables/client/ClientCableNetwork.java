@@ -1,7 +1,7 @@
 package com.sward.gtcables.client;
 
 import com.gregtechceu.gtceu.common.data.GTSoundEntries;
-import com.gregtechceu.gtceu.common.item.ColorSprayBehaviour;
+import com.gregtechceu.gtceu.common.item.behavior.ColorSprayBehaviour;
 import com.mojang.blaze3d.vertex.*;
 import com.sward.gtcables.*;
 import com.sward.gtcables.blocks.ConnectorBlock;
