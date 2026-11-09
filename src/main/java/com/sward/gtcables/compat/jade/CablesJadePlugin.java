@@ -36,79 +36,45 @@ public final class CablesJadePlugin implements IWailaPlugin
 	@Override
 	public void registerClient(IWailaClientRegistration registration)
 	{
-		registration.registerBlockComponent(Provider.INSTANCE, ConnectorBlock.class);
-		registration.markAsClientFeature(Provider.INSTANCE.getUid());
-		registration.addRayTraceCallback((hit, accessor, original) ->
-		{
-			CableHitResult hitResult = ClientCableNetwork.targetCable();
-
-			if (hitResult == null)
-			{
-				return accessor;
-			}
-
-			Minecraft mc = Minecraft.getInstance();
-
-			if (hit != null && hit.getType() != HitResult.Type.MISS &&
-				mc.player.getEyePosition().distanceTo(hit.getLocation()) + 0.001D < hitResult.distance())
-			{
-				return accessor;
-			}
-
-			CompoundTag data = new CompoundTag();
-
-			data.putLong(MARKER, hitResult.cable().id);
-
-			// Synthetic accessor located on the cable, not at either (possibly unloaded) endpoint.
-			// Its immutable stats already arrived in our link sync; Jade needs no server request.
-			return registration.blockAccessor().level(mc.level).player(mc.player)
-				.hit(new BlockHitResult(hitResult.hit(), Direction.UP, BlockPos.containing(hitResult.hit()), false))
-				.blockState(GregTechCables.CONNECTOR.get().defaultBlockState())
-				.fakeBlock(new ItemStack(hitResult.cable().cableType.item()))
-				.serverData(data).serverConnected(false).showDetails(registration.isShowDetailsPressed()).build();
-		});
+		ClientRegistration.register(registration);
 	}
 
-	public static List<Component> description(CableHitResult hitResult, boolean details)
+	private static class ClientRegistration
 	{
-		Cable cable = hitResult.cable();
-		CableType cableType = cable.cableType;
-
-		ArrayList<Component> lines = new java.util.ArrayList<>();
-
-		lines.add(Component.translatable(
-			"jade.gtcables.voltage",
-			GTValues.VNF[GTUtil.getTierByVoltage(cableType.voltage())]
-		));
-
-		lines.add(Component.translatable("jade.gtcables.amperage", cableType.amps()));
-
-		lines.add(Component.translatable("jade.gtcables.length", decimal(cable.lengthCm, 2)));
-
-		if (cable.color != UNPAINTED_COLOR)
+		private static void register(IWailaClientRegistration registration)
 		{
-			lines.add(
-				Component.translatable("gtceu.top.stained", String.format("#%06X", cable.color))
-					.withStyle(style -> style.withColor(cable.color))
-			);
+			registration.registerBlockComponent(Provider.INSTANCE, ConnectorBlock.class);
+			registration.markAsClientFeature(Provider.INSTANCE.getUid());
+			registration.addRayTraceCallback((hit, accessor, original) ->
+			{
+				CableHitResult hitResult = ClientCableNetwork.targetCable();
+
+				if (hitResult == null)
+				{
+					return accessor;
+				}
+
+				Minecraft mc = Minecraft.getInstance();
+
+				if (hit != null && hit.getType() != HitResult.Type.MISS &&
+					mc.player.getEyePosition().distanceTo(hit.getLocation()) + 0.001D < hitResult.distance())
+				{
+					return accessor;
+				}
+
+				CompoundTag data = new CompoundTag();
+
+				data.putLong(MARKER, hitResult.cable().id);
+
+				// Synthetic accessor located on the cable, not at either (possibly unloaded) endpoint.
+				// Its immutable stats already arrived in our link sync; Jade needs no server request.
+				return registration.blockAccessor().level(mc.level).player(mc.player)
+					.hit(new BlockHitResult(hitResult.hit(), Direction.UP, BlockPos.containing(hitResult.hit()), false))
+					.blockState(GregTechCables.CONNECTOR.get().defaultBlockState())
+					.fakeBlock(new ItemStack(hitResult.cable().cableType.item()))
+					.serverData(data).serverConnected(false).showDetails(registration.isShowDetailsPressed()).build();
+			});
 		}
-
-		if (details)
-		{
-			lines.add(Component.translatable("jade.gtcables.endpoint_a", cable.a.toShortString()));
-			lines.add(Component.translatable("jade.gtcables.endpoint_b", cable.b.toShortString()));
-			lines.add(Component.translatable(
-				"jade.gtcables.span_loss",
-				decimal((long) cable.lengthCm * cableType.lossPerMetre(), 2)
-			));
-		}
-
-		return lines;
-	}
-
-	private static String decimal(long value, int scale)
-	{
-		return BigDecimal.valueOf(value, scale).stripTrailingZeros().toPlainString();
 	}
 
 	private enum Provider implements IBlockComponentProvider
@@ -137,6 +103,48 @@ public final class CablesJadePlugin implements IWailaPlugin
 			}
 
 			description(hitResult, accessor.showDetails()).forEach(tooltip::add);
+		}
+
+		private static List<Component> description(CableHitResult hitResult, boolean details)
+		{
+			Cable cable = hitResult.cable();
+			CableType cableType = cable.cableType;
+
+			ArrayList<Component> lines = new java.util.ArrayList<>();
+
+			lines.add(Component.translatable(
+				"jade.gtcables.voltage",
+				GTValues.VNF[GTUtil.getTierByVoltage(cableType.voltage())]
+			));
+
+			lines.add(Component.translatable("jade.gtcables.amperage", cableType.amps()));
+
+			lines.add(Component.translatable("jade.gtcables.length", decimal(cable.lengthCm, 2)));
+
+			if (cable.color != UNPAINTED_COLOR)
+			{
+				lines.add(
+					Component.translatable("gtceu.top.stained", String.format("#%06X", cable.color))
+						.withStyle(style -> style.withColor(cable.color))
+				);
+			}
+
+			if (details)
+			{
+				lines.add(Component.translatable("jade.gtcables.endpoint_a", cable.a.toShortString()));
+				lines.add(Component.translatable("jade.gtcables.endpoint_b", cable.b.toShortString()));
+				lines.add(Component.translatable(
+					"jade.gtcables.span_loss",
+					decimal((long) cable.lengthCm * cableType.lossPerMetre(), 2)
+				));
+			}
+
+			return lines;
+		}
+
+		private static String decimal(long value, int scale)
+		{
+			return BigDecimal.valueOf(value, scale).stripTrailingZeros().toPlainString();
 		}
 	}
 }
