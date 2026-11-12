@@ -126,6 +126,7 @@ repositories {
     //     dir 'libs'
     // }
     maven { url = 'https://maven.gtceu.com' }
+    maven { url = 'https://repo.repsy.io/mvn/toma/public/'; content { includeGroup 'dev.toma.configuration' } }
     maven { url = 'https://maven.firstdark.dev/snapshots/' }
     maven { url = 'https://maven.tterrag.com/' }
     maven { url = 'https://maven.blamejared.com/' }
@@ -141,15 +142,16 @@ dependencies {
     minecraft "net.minecraftforge:forge:${minecraft_version}-${forge_version}"
     implementation(fg.deobf("com.gregtechceu.gtceu:gtceu-${minecraft_version}:${gtceu_version}:slim")) { transitive = false }
     implementation fg.deobf('com.tterrag.registrate:Registrate:MC1.20-1.3.11')
-    implementation(fg.deobf('com.lowdragmc.ldlib:ldlib-forge-1.20.1:1.0.40.b')) { transitive = false }
-    implementation(fg.deobf('dev.toma.configuration:configuration-forge-1.20.1:2.2.0')) { transitive = false }
+    implementation(fg.deobf('brachy.modularui:modularui-mc1.20.1:3.3.1-20261026.164651-25')) { transitive = false }
+    implementation(fg.deobf('dev.toma.configuration:configuration-1.20.1:3.1.0-forge')) { transitive = false }
+    runtimeOnly(fg.deobf('io.github.llamalad7:mixinextras-forge:0.5.5')) { transitive = false }
     compileOnly fg.deobf('curse.maven:jade-324717:5390389')
     if (!project.hasProperty('withoutJade')) runtimeOnly fg.deobf('curse.maven:jade-324717:5390389')
     runtimeOnly(fg.deobf('mezz.jei:jei-1.20.1-forge:15.20.0.115')) { transitive = false }
     runtimeOnly fg.deobf('curse.maven:embeddium-908741:5681725')
 }
 
-// LDLib publishes optional integrations as dependencies. ForgeGradle resolves
+// Mod libraries publish integrations and loader dependencies. ForgeGradle resolves
 // originals separately, so transitive = false on implementation alone is insufficient.
 configurations.configureEach {
     if (name == '__obfuscated') transitive = false

@@ -78,7 +78,7 @@ public final class GregTechCables
 		ITEMS.register(bus);
 		ENTITIES.register(bus);
 		RECIPES.register(bus);
-		REGISTRATE.registerRegistrate();
+		REGISTRATE.registerEventListeners(bus);
 
 		CablePackets.init();
 
